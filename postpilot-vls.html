@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PostPilot VLS</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#06070b;--panel:#12141b;--panel2:#1d2030;--line:#2a2f45;--txt:#ffffff;--mut:#9aa1bd;--acc:#3d6bff;--acc2:#19e68c;--warn:#ffb800;--bad:#ff4d6a;--li:#0a66c2;--ig:#d62976;
+--c-blue:#3d6bff;--c-orange:#ff7a1a;--c-yellow:#ffc800;--c-green:#12d97b;--r:22px}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,"SF Pro Display",system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);background-image:radial-gradient(900px 500px at 85% -10%,rgba(61,107,255,.28),transparent 60%),radial-gradient(700px 400px at -5% 110%,rgba(18,217,123,.14),transparent 60%);background-attachment:fixed;color:var(--txt);display:flex;min-height:100vh;-webkit-font-smoothing:antialiased}
+aside{width:96px;background:rgba(19,21,28,.72);backdrop-filter:blur(14px);border-right:1px solid var(--line);padding:18px 10px;position:sticky;top:0;height:100vh;flex-shrink:0;display:flex;flex-direction:column;align-items:center}
+.logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#e3001b,#9a0012);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;margin:2px 0 22px;box-shadow:0 8px 24px rgba(227,0,27,.45);letter-spacing:-.02em}
+nav{display:flex;flex-direction:column;gap:6px;width:100%}
+nav button{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;background:none;border:0;color:var(--mut);padding:10px 2px;border-radius:16px;font-size:10px;font-weight:600;cursor:pointer;transition:.18s;letter-spacing:.01em}
+nav button svg,.mnav button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav button:hover{background:var(--panel2);color:var(--txt)}
+nav button.on{background:var(--acc);color:#fff;box-shadow:0 6px 20px rgba(255,255,255,.12)}
+main{flex:1;padding:34px 36px 60px;max-width:1280px;min-width:0}
+h1{margin:0 0 6px;font-size:30px;font-weight:700;letter-spacing:-.02em}.sub{color:var(--mut);margin:0 0 26px;font-size:14px}
+.grid{display:grid;gap:16px}.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:20px}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,0)),var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset}
+.kpi .l{color:var(--mut);font-size:12px;font-weight:500;padding-right:34px}.kpi .v{font-size:32px;font-weight:700;margin-top:8px;letter-spacing:-.02em}
+.kpis>.kpi{position:relative;min-height:128px;display:flex;flex-direction:column;justify-content:space-between;border:0}
+.kpis>.kpi .ar{position:absolute;top:16px;right:16px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.14);display:flex;align-items:center;justify-content:center;font-size:14px}
+.kpis>.kpi:nth-child(1){background:#fff;color:#06070b;box-shadow:0 12px 30px rgba(255,255,255,.12)}.kpis>.kpi:nth-child(1) .l{color:#5b6074}.kpis>.kpi:nth-child(1) .ar{background:var(--acc);color:#fff}
+.kpis>.kpi:nth-child(2){background:var(--c-blue);color:#fff;box-shadow:0 12px 30px rgba(61,107,255,.35)}
+.kpis>.kpi:nth-child(3){background:var(--c-orange);color:#1f0d00;box-shadow:0 12px 30px rgba(255,122,26,.3)}
+.kpis>.kpi:nth-child(4){background:var(--c-yellow);color:#241b00;box-shadow:0 12px 30px rgba(255,200,0,.28)}
+.kpis>.kpi:nth-child(5){background:var(--c-green);color:#03231a;box-shadow:0 12px 30px rgba(18,217,123,.28)}
+.kpis>.kpi:nth-child(6){background:var(--panel2);color:var(--txt)}.kpis>.kpi:nth-child(6) .ar{background:rgba(255,255,255,.1)}
+.kpis>.kpi:nth-child(-n+5) .l{color:rgba(0,0,0,.65);font-weight:600}.kpis>.kpi:nth-child(2) .l{color:rgba(255,255,255,.85)}.kpis>.kpi:nth-child(2) .ar{background:rgba(255,255,255,.22)}.kpis>.kpi:nth-child(-n+5) .v.good{color:inherit}
+.two{grid-template-columns:2fr 1fr}
+@media(max-width:900px){.two{grid-template-columns:1fr}aside{display:none}body{display:block}.mnav{display:flex!important}main{padding:22px 16px 110px}h1{font-size:25px}}
+.mnav{display:none;gap:4px;overflow:auto;padding:8px;background:rgba(19,21,28,.92);backdrop-filter:blur(14px);position:fixed;bottom:12px;left:12px;right:12px;z-index:8;border:1px solid var(--line);border-radius:24px;justify-content:space-between}
+.mnav button{background:none;border:0;color:var(--mut);padding:8px 4px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;font-weight:600;white-space:nowrap;flex:1;min-width:0}
+.mnav button.on{background:var(--acc);color:#fff}
+label{display:block;font-size:12px;font-weight:500;color:var(--mut);margin:14px 0 6px}
+input,select,textarea{width:100%;background:#0c0d12;border:1px solid var(--line);color:var(--txt);border-radius:14px;padding:11px 14px;font:inherit;font-size:14px;transition:.15s}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--acc);box-shadow:0 0 0 3px rgba(61,107,255,.3)}
+textarea{min-height:120px;resize:vertical;line-height:1.55}
+.btn{background:linear-gradient(135deg,#3d6bff,#5a4dff);box-shadow:0 6px 18px rgba(61,107,255,.35);color:#fff;border:0;padding:11px 18px;border-radius:99px;font-weight:600;cursor:pointer;font-size:14px;transition:.15s}.btn:hover{filter:brightness(1.12);transform:translateY(-1px)}.btn:disabled{opacity:.5;cursor:wait}
+.btn.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}.btn.sm{padding:7px 13px;font-size:12px}.btn.ok{background:var(--acc2);color:#04241b}.btn.del{background:none;color:var(--bad);border:1px solid var(--line)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row>*{flex:0 0 auto}.f1{flex:1!important}
+.tag{display:inline-block;font-size:11px;padding:4px 11px;border-radius:99px;font-weight:700}.tag.li{background:var(--li)}.tag.ig{background:linear-gradient(135deg,#f58529,#dd2a7b 55%,#8134af)}.tag.draft{background:var(--panel2);color:var(--mut)}.tag.pub{background:rgba(25,230,140,.2);color:var(--acc2)}
+.post{margin-bottom:16px}.post pre{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.6;margin:12px 0;background:#0c0d12;padding:16px;border-radius:16px;border:1px solid var(--line)}
+.mut{color:var(--mut);font-size:12px}.m6{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}.m6 input{padding:8px}
+@media(max-width:700px){.m6{grid-template-columns:repeat(3,1fr)}}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line)}th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}tr:last-child td{border-bottom:0}tr:hover td{background:rgba(255,255,255,.02)}
+.good{color:var(--acc2)}.badc{color:var(--bad)}.btn.sec,.btn.del,.btn.ok{box-shadow:none}
+td.good,td.badc{font-weight:700}
+.note{background:rgba(255,193,94,.08);border:1px solid rgba(255,193,94,.25);padding:14px 16px;border-radius:16px;font-size:13px;color:#e9d3a3;margin-bottom:18px;line-height:1.55}
+.rule{padding:12px 14px;background:#0c0d12;border-radius:14px;margin-bottom:8px;font-size:14px;border:1px solid var(--line);line-height:1.5}
+#toast{position:fixed;bottom:24px;right:24px;background:#fff;color:#0b0c10;font-weight:500;padding:13px 20px;border-radius:16px;display:none;z-index:20;max-width:360px;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+.empty{text-align:center;color:var(--mut);padding:48px 10px}canvas{max-height:300px}
+.bar{height:10px;background:#0c0d12;border-radius:9px;overflow:hidden;margin:10px 0 6px}.bar i{display:block;height:100%;background:linear-gradient(90deg,#3d6bff,#9a4dff 50%,#19e68c);border-radius:9px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:20px}
+.help{font-size:12px;color:var(--mut);margin:4px 0 10px;line-height:1.55}
+.step{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--acc);color:#fff;align-items:center;justify-content:center;font-size:13px;margin-right:8px;font-weight:700}
+.prow{padding:16px 20px;margin-bottom:12px}.prow summary{cursor:pointer;list-style:none}.prow summary::-webkit-details-marker{display:none}.prow[open]>summary{padding-bottom:4px}
+.idea{border-radius:14px!important;line-height:1.4;padding:9px 13px!important}
+a{color:var(--acc)}
+.row>.btn{max-width:100%;white-space:normal;text-align:left}
+.drop{border:2px dashed var(--line);border-radius:18px;padding:26px;text-align:center;color:var(--mut);cursor:pointer;transition:.15s;margin-top:12px}.drop:hover,.drop.on{border-color:var(--acc);color:var(--txt);background:rgba(61,107,255,.06)}
+.imp{width:100%;overflow:auto;margin-top:14px}.imp table{min-width:900px}.imp td{padding:6px;vertical-align:top}.imp input,.imp select,.imp textarea{padding:6px 8px;border-radius:10px;font-size:12px}.imp textarea{min-height:54px}.imp select{min-width:118px}.imp input[type=date]{min-width:140px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.kpi .v{font-size:26px}#toast{bottom:96px;right:12px;left:12px;max-width:none}}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
+</style>
+</head>
+<body>
+<aside>
+  <div class="logo">VLS</div>
+  <nav id="nav"></nav>
+</aside>
+<div style="flex:1;min-width:0">
+<div class="mnav" id="mnav"></div>
+<main id="app"></main>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ===================== PROFIL VLS ===================== */
+const KEY='postpilot_vls_v1';
+const PLS=['linkedin','instagram'];
+const PLN={linkedin:'LinkedIn',instagram:'Instagram'};
+const PLT={linkedin:'li',instagram:'ig'};
+const BRAND={name:'VLS',short:'Event technology · depuis 1983',site:'https://www.vls.fr/',
+ sector:"Prestataire technique événementiel et pionnier du mapping depuis 1983 (Buc, Yvelines ; groupe MPM) : vidéo, lumière, son, structure et énergie, de la conception à l'exploitation. Trois expertises : Grande Image (mapping 3D, projection monumentale, murs LED, expériences immersives), Event (séminaires, conventions, lancements, concerts, festivals, plateaux TV, captation et streaming) et Technisite (gestion technique audiovisuelle d'hôtels, business centers et centres de congrès)",
+ topics:"mapping vidéo et projection monumentale, fêtes des lumières, mise en lumière du patrimoine, technique audiovisuelle d'événements d'entreprise (conventions, séminaires, lancements, galas, événements hybrides, streaming), scénographie immersive, murs LED, sonorisation, régie, sécurité des structures, sobriété énergétique de l'événementiel, actualité de l'événementiel et du spectacle vivant",
+ audience:"Agences événementielles, directions communication et événementiel d'entreprises, collectivités et offices de tourisme (fêtes des lumières, patrimoine), maisons de luxe et marques, hôtels, business centers et centres de congrès, institutions, artistes et producteurs de spectacles",
+ tone:"LinkedIn : expert, concret, fier sans emphase, vouvoiement, un fait réel par post, remerciements nominatifs aux partenaires cités dans la fiche, CTA discret (proposition en 24 heures, parlez à un expert). Instagram : émotionnel et visuel, phrases courtes, accroche qui donne envie de regarder l'image, emojis mesurés, vouvoiement, appel à l'échange en commentaire",
+ pillars:"LinkedIn : réalisations / preuve 35 %, expertise et pédagogie 25 %, coulisses et équipe 20 %, partenaires et réseau 10 %, offre 5 %, communauté 5 %. Instagram : réalisations visuelles 40 %, coulisses 30 %, équipe 15 %, expertise 10 %, offre 5 %",
+ facts:"Faits vérifiés sur VLS (site vls.fr) : créée en 1983 ; basée à Buc, à quelques minutes de Versailles ; membre du groupe MPM (MPM Audiolight) qui donne accès à un très large parc son, lumière, vidéo et structure avec technicien ; pionnier du mapping ; bureau d'étude intégré (études 2D/3D, maquettes, prévisualisations, audit terrain) ; un chargé d'affaires interlocuteur unique du brief à la réalisation ; « une proposition en 24 heures » ; Technisite : équipe dédiée, disponibilité 7j/7, matériel complémentaire mobilisable sous 2 h ; RSE : parc entretenu et reconditionné, tournées mutualisées et logistique optimisée, matériel à basse consommation, politique RH inclusive et formation interne ; Trophée de la meilleure réalisation audiovisuelle 2019 reçu au salon Heavent Paris ; références affichées sur le site : Nissan, Air France, Ville de Lyon, Barrière, The Ritz-Carlton, Le Meurice, Burj Al Arab ; signature : « Rendre l'éphémère inoubliable » ; Instagram @vls_event. N'avance AUCUN autre chiffre global (nombre de prestations par an, taille du parc, nombre de lieux) : ces chiffres varient selon les pages du site."};
+const DEF={settings:{apiKey:'',model:'claude-sonnet-5-5'},user:'Lise',prof:{},goals:{linkedin:{start:2813,goal:3500},instagram:{start:1545,goal:2000}},posts:[],fol:[],rev:0,learn:{rules:[],summary:'',count:0,at:null},trends:null,ideaRef:null};
+function norm(d){d=d||{};const x=structuredClone(DEF);return{...x,...d,settings:{...x.settings,...(d.settings||{})},prof:d.prof||{},goals:{linkedin:{...x.goals.linkedin,...((d.goals||{}).linkedin||{})},instagram:{...x.goals.instagram,...((d.goals||{}).instagram||{})}},posts:(d.posts||[]).map(p=>({...p,platform:p.platform==='instagram'?'instagram':'linkedin',m:{impressions:0,likes:0,comments:0,shares:0,saves:0,clicks:0,...(p.m||{})}})),fol:d.fol||[],learn:{...x.learn,...(d.learn||{})},user:d.user||'Lise'}}
+let S=load();
+const B=()=>({...BRAND,...S.prof});
+const L=()=>S.learn;
+function curFol(pl){const h=S.fol.filter(f=>f.platform===pl).sort((x,y)=>x.date<y.date?-1:x.date>y.date?1:x.at-y.at);return h.length?h[h.length-1].n:S.goals[pl].start}
+let tab='dashboard';let period=0;let dnet='all';let charts={};
+function load(){try{return norm(JSON.parse(localStorage.getItem(KEY)))}catch{return norm({})}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Sauvegarde impossible : '+e.message,6000)}}
+const $=s=>document.querySelector(s);
+const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10);
+const pad=n=>String(n).padStart(2,'0');
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+function toast(m,ms=3500){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',ms)}
+const fmt=n=>n==null||isNaN(n)?'–':Number(n).toLocaleString('fr-FR',{maximumFractionDigits:1});
+
+/* ===================== MÉTRIQUES ===================== */
+const MK=[['impressions','Impressions / vues'],['likes','J\'aime'],['comments','Commentaires'],['shares','Partages / envois'],['saves','Enregistrements'],['clicks','Clics']];
+const EMPTY_M=()=>({impressions:0,likes:0,comments:0,shares:0,saves:0,clicks:0});
+const inter=p=>(+p.m?.likes||0)+(+p.m?.comments||0)+(+p.m?.shares||0)+(+p.m?.saves||0);
+const er=p=>p.m?.impressions>0?inter(p)/p.m.impressions*100:null;
+const ctr=p=>p.m?.impressions>0?(+p.m.clicks||0)/p.m.impressions*100:null;
+const measured=()=>S.posts.filter(p=>p.status==='published'&&p.m?.impressions>0);
+function feats(t){return{q:/\?/.test(t),emoji:/\p{Extended_Pictographic}/u.test(t),list:/^\s*([-•→✅▪️]|\d+[.)])/m.test(t),num:/\d/.test(t),tags:/#[\p{L}\w]+/u.test(t),long:t.length>900,short:t.length<400}}
+const FL={q:'Contient une question',emoji:'Contient des emojis',list:'Format liste',num:'Contient des chiffres',tags:'Contient des hashtags',long:'Post long (>900 car.)',short:'Post court (<400 car.)'};
+function insights(plat){
+  const M=measured().filter(p=>!plat||p.platform===plat);if(M.length<6)return[];
+  const rate=a=>{const i=a.reduce((t,p)=>t+p.m.impressions,0);return i?a.reduce((t,p)=>t+inter(p),0)/i*100:0};
+  const out=[];
+  for(const k in FL){
+    const w=M.filter(p=>feats(p.text)[k]),wo=M.filter(p=>!feats(p.text)[k]);
+    if(w.length<3||wo.length<3)continue;
+    const x=rate(w),y=rate(wo);
+    out.push({k,label:FL[k],with:x,without:y,diff:y?((x-y)/y*100):0,n:[w.length,wo.length]});
+  }
+  return out.sort((p,q)=>Math.abs(q.diff)-Math.abs(p.diff));
+}
+
+/* ===================== API CLAUDE ===================== */
+async function claude(system,user,max=3000){
+  if(!S.settings.apiKey)throw new Error('Ajoute ta clé API Anthropic dans Réglages.');
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:S.settings.model,max_tokens:max,system,messages:[{role:'user',content:user}]})});
+  const j=await r.json();if(!r.ok)throw new Error(j.error?.message||('Erreur '+r.status));
+  return j.content.map(c=>c.text||'').join('');
+}
+function repairJSON(t){
+  let out='',inS=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(!inS){out+=c;if(c==='"')inS=true;continue}
+    if(c==='\\'){out+=c+(t[i+1]??'');i++;continue}
+    if(c==='\n'){out+='\\n';continue}
+    if(c==='\r')continue;
+    if(c==='\t'){out+='\\t';continue}
+    if(c==='"'){const m=t.slice(i+1).match(/^\s*(.)/),n=m?m[1]:'';
+      if(!n||',:}]'.includes(n)){out+=c;inS=false}else out+='\\"';continue}
+    out+=c}
+  return out.replace(/,\s*([}\]])/g,'$1')}
+function parseJSON(t){
+  t=String(t).replace(/```(?:json)?/gi,'');
+  const c=[],a=t.indexOf('{'),b=t.lastIndexOf('}'),x=t.indexOf('['),y=t.lastIndexOf(']');
+  const O=a>=0&&b>a?t.slice(a,b+1):null,A=x>=0&&y>x?t.slice(x,y+1):null;
+  if(A&&(!O||x<a))c.push(A);if(O)c.push(O);if(A&&!c.includes(A))c.push(A);
+  for(const z of c)for(const w of[z,repairJSON(z)]){try{return JSON.parse(w)}catch{}}
+  throw new Error('Réponse IA invalide')}
+const pDesc=p=>`[${p.platform}] ER ${fmt(er(p))}% | CTR ${fmt(ctr(p))}% | ${p.m.impressions} impr, ${p.m.likes} j'aime, ${p.m.comments} com., ${p.m.shares} partages, ${p.m.saves||0} enregistrements, ${p.m.clicks} clics\n"""${p.text}"""`;
+function perfContext(plats){
+  plats=plats||PLS;
+  let c='';
+  if(L().rules.length)c+='RÈGLES APPRISES (à appliquer en priorité):\n'+L().rules.map((l,i)=>`${i+1}. ${l}`).join('\n')+'\n\n';
+  else c+='RÈGLES APPRISES: aucune pour l\'instant.\n\n';
+  for(const pl of plats){
+    const M=measured().filter(p=>p.platform===pl).sort((a,b)=>er(b)-er(a));
+    if(!M.length)continue;
+    c+=`RÉSULTATS ${PLN[pl].toUpperCase()} (${M.length} posts mesurés)\nMeilleurs posts:\n`+M.slice(0,2).map(pDesc).join('\n---\n')+'\n\n';
+    if(M.length>3)c+='Pire post (à ne pas reproduire):\n'+M.slice(-1).map(pDesc).join('')+'\n\n';
+    const ins=insights(pl).slice(0,4);
+    c+=ins.length?`Corrélations ${PLN[pl]} (taux cumulé = interactions / impressions; INDICATIVES, petits échantillons, sans preuve de causalité):\n`+ins.map(i=>`- ${i.label}: ${fmt(i.with)}% (${i.n[0]} posts) vs ${fmt(i.without)}% sans (${i.n[1]} posts)`).join('\n')+'\n\n':`Pas assez de posts ${PLN[pl]} pour des corrélations fiables (6 minimum): explore des angles variés.\n\n`;
+  }
+  c+='HIÉRARCHIE DES INFORMATIONS: 1) faits de la fiche réalisation et faits VLS, 2) règles apprises, 3) objectif demandé, 4) règles du brief, 5) corrélations (à ne suivre que si elles ne contredisent pas 1 à 4). Ne conclus jamais qu\'un élément « ne marche pas » sur moins de 6 posts.';
+  return c;
+}
+const IMGR=`Pour chaque post, ajoute le champ "image" : une suggestion concrète de visuel (1 à 2 phrases). Pour Instagram, précise le format : photo unique, carrousel (nombre d'images et contenu de chacune) ou reel (durée, plans). Privilégie les vraies images du projet (mapping de nuit, public, régie, montage, techniciens en action) ; jamais de photo de stock. Texte à incruster éventuel : très court.`;
+const SYS=()=>`Tu es un expert en copywriting social media B2B francophone, spécialiste de l'événementiel et du spectacle. Tu écris des posts qui génèrent du commentaire, du partage, des enregistrements et des demandes de devis.
+Marque: ${B().name}. Activité: ${B().sector}. Audience: ${B().audience}. Ton: ${B().tone}. Piliers de contenu: ${B().pillars}.
+${B().facts}
+Règles: accroche forte dans la 1re ligne (avant le "voir plus"), phrases courtes, aérées, une idée par post, une fin qui invite à agir ou échanger selon l'objectif (si les résultats ou les règles apprises montrent qu'un type de fin freine l'engagement, choisis-en un autre).
+EXACTITUDE (impératif): n'utilise que les faits de la FICHE RÉALISATION fournie et des faits VLS ci-dessus. N'invente ni chiffre, ni date, ni matériel, ni marque d'équipement, ni anecdote, ni citation, ni nom de personne. Si un détail manque, reste général ou formule-le comme une question au public. Ne décris pas de scan laser ou de modélisation 3D pour un projet si la fiche ne le mentionne pas. Remercie les partenaires cités dans la fiche quand c'est pertinent.
+LinkedIn: 600-1300 caractères, 0-3 emojis max, 3-5 hashtags en fin. Si un lien est pertinent, place exactement {{LINK}} là où il doit apparaître (il sera remplacé par un lien tracké).
+Instagram: légende de 150 à 700 caractères, accroche de moins de 125 caractères, emojis bienvenus (3 à 6), 8 à 15 hashtags pertinents en bloc à la fin (#mapping #videomapping #eventtech #evenementiel… adaptés au sujet), pas de lien cliquable : écris « lien en bio » à la place, invite à enregistrer ou à commenter.
+Réponds UNIQUEMENT avec un JSON valide.`;
+
+async function generate(){
+  const topic=$('#topic').value.trim(),plat=$('#plat').value,n=+$('#n').value,goal=$('#goal').value;
+  if(!topic)return toast('Indique un sujet ou choisis une idée.');
+  const btn=$('#gen');btn.disabled=true;btn.textContent='Génération…';
+  try{
+    const [sys,user]=genParts(topic,plat,n,goal);
+    const out=parseJSON(await claude(sys,user,4000));
+    addGenerated(out.posts||[],topic);
+    toast(`${(out.posts||[]).length} posts générés ✔`);go('posts');
+  }catch(e){toast('Erreur : '+e.message,6000)}
+  btn.disabled=false;btn.textContent='Générer les posts (clé API)';
+}
+function addGenerated(arr,topic){arr.forEach(p=>S.posts.unshift({id:uid(),platform:p.platform==='instagram'?'instagram':'linkedin',angle:p.angle||'',text:p.text,image:p.image||'',topic,source:'generated',status:'draft',createdAt:new Date().toISOString(),m:EMPTY_M()}));save()}
+
+function analyzeParts(M){
+  const user=`Voici les résultats de mes posts VLS (ER = taux d'engagement, CTR = taux de clic):\n\n${M.map(pDesc).join('\n---\n')}\n\nCorrélations calculées:\n${PLS.flatMap(pl=>insights(pl).map(i=>`- ${PLN[pl]} · ${i.label}: ${fmt(i.with)}% (${i.n[0]} posts) vs ${fmt(i.without)}% (${i.n[1]} posts)`)).join('\n')||'échantillon insuffisant'}\n\nAnciennes règles:\n${L().rules.join('\n')||'aucune'}\n\nMission: analyse ce qui fonctionne et ce qui échoue, et produis 5 à 8 règles d'écriture concrètes, actionnables et priorisées pour mes prochains posts (accroches, longueur, format, CTA, sujets et types de réalisations, visuels, différences LinkedIn/Instagram). Fusionne/corrige les anciennes règles. Reste prudent si l'échantillon est petit.\nFormat: {"rules":["..."],"summary":"2 phrases"}`;
+  return['Tu es un analyste de performance social media. Réponds uniquement en JSON valide.',user]}
+function applyLearn(o,M){S.learn.rules=o.rules||[];S.learn.summary=o.summary||'';S.learn.count=M.length;S.learn.at=new Date().toISOString();save()}
+async function analyze(auto){
+  const M=measured();if(M.length<3){if(!auto)toast('Il faut au moins 3 posts publiés avec des résultats.');return}
+  if(!S.settings.apiKey){if(auto)toast('3 nouveaux posts mesurés : mets à jour les règles dans Apprentissage (mode sans clé).',6000);else toast('Pas de clé API : utilise le mode sans clé ci-dessous.',6000);return}
+  try{
+    const [sys,user]=analyzeParts(M);
+    applyLearn(parseJSON(await claude(sys,user,2000)),M);
+    toast('Apprentissage mis à jour ✔');if(tab==='learn')render();
+  }catch(e){toast('Analyse impossible : '+e.message,6000)}
+}
+function maybeAnalyze(){const n=measured().length;if(n>=3&&n-L().count>=3)analyze(true)}
+
+/* ===================== ACTIONS POSTS ===================== */
+function linkFor(p){
+  if(p.platform==='instagram')return 'lien en bio';
+  const site=B().site;if(!site)return '';
+  try{const u=new URL(site);u.searchParams.set('utm_source',p.platform);u.searchParams.set('utm_medium','social');u.searchParams.set('utm_campaign','ppvls_'+p.id);return u.toString()}catch{return site}
+}
+const finalText=p=>p.text.replaceAll('{{LINK}}',linkFor(p));
+async function copyPost(id){const p=S.posts.find(x=>x.id===id);try{await navigator.clipboard.writeText(finalText(p));toast(p.platform==='linkedin'?'Copié ✔ (lien UTM inclus)':'Copié ✔')}catch{toast('Copie impossible : autorise le presse-papiers.')}}
+function openNet(id){const p=S.posts.find(x=>x.id===id);copyPost(id);
+  window.open(p.platform==='linkedin'?'https://www.linkedin.com/feed/?shareActive=true&text='+encodeURIComponent(finalText(p)):'https://www.instagram.com/vls_event/','_blank')}
+function publish(id){const p=S.posts.find(x=>x.id===id);p.status='published';p.publishedAt=new Date().toISOString();save();render();toast('Marqué comme publié. Reviens saisir les résultats dans 48 h.')}
+function delPost(id){if(!confirm('Supprimer ce post ?'))return;S.posts=S.posts.filter(p=>p.id!==id);save();render()}
+function saveMetrics(id){
+  const p=S.posts.find(x=>x.id===id),m={};
+  MK.forEach(([k])=>m[k]=+$('#'+k+'_'+id).value||0);p.m=m;
+  save();render();toast('Résultats enregistrés ✔');maybeAnalyze();
+}
+function editImg(id){const p=S.posts.find(x=>x.id===id);p.image=$('#img_'+id).value;save();toast('Suggestion d\'image enregistrée ✔')}
+function editText(id){const p=S.posts.find(x=>x.id===id);p.text=$('#t_'+id).value;save();toast('Texte modifié ✔')}
+function exportData(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));a.download='postpilot-vls-sauvegarde.json';a.click()}
+function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{S=norm(JSON.parse(r.result));save();render();toast('Import réussi ✔')}catch{toast('Fichier invalide')}};r.readAsText(f)}
+function reset(){if(confirm('Effacer TOUTES les données ?')){S=norm({});save();render()}}
+
+/* ===================== RÉALISATIONS VLS (source : vls.fr) ===================== */
+const EV=[
+{t:'Sommet Choose France',y:2026,l:'Château de Versailles',cat:'convention',th:'conv',c:"Groupe S'cape",n:1,kw:'choose france|versailles',r:"sonorisation et vidéo, en intérieur comme en extérieur",f:"9e édition du sommet dédié à l'attractivité économique de la France ; dirigeants de grandes entreprises internationales réunis autour du Président de la République ; 30 techniciens VLS se sont relayés toute la nuit jusqu'au petit matin pour installer, régler, tester et sécuriser ; à quelques minutes des locaux VLS de Buc",u:'sommet-choose-france'},
+{t:'Visite du pape Léon XIV à Metz',y:2026,l:'Metz',cat:'grand rassemblement',th:'live',c:'MPM Audiolight',n:1,kw:'pape|léon xiv|metz',r:"ressources techniques et équipements, aux côtés de MPM Audiolight (groupe MPM)",f:"lundi 28 septembre ; dernière étape du voyage apostolique du pape en France ; plusieurs dizaines de milliers de personnes ; fiabilité et coordination essentielles",u:'visite-du-pape-leon-xiv-a-metz-vls-aux-cotes-de-mpm-audiolight'},
+{t:"Eddy de Pretto à l'Espace Niemeyer",y:2026,l:'Espace Niemeyer, Paris 19e',cat:'concert',th:'live',c:'MPM Audiolight',n:0,kw:'pretto|niemeyer',r:"l'ensemble de la partie vidéo",f:"show pensé pour la caméra, entre performance live et tournage de clip ; installation conçue à partir d'un scan 3D du lieu ; cadre architectural unique intégré au show",u:'eddy-de-pretto-a-lespace-niemeyer-le-dispositif-video-par-vls'},
+{t:'Flying Whales Day',y:2026,l:'Pathé Palace, Paris',cat:'convention',th:'conv',c:'Flying Whales',n:1,kw:'flying whales|pathé|dirigeable',r:"prestations audiovisuelles et réalisation technique",f:"plus de 250 participants ; présentation du dirigeable LCA60T (200 m de long, près de 50 m de haut, des dimensions comparables à celles du Grand Palais) pour le transport de charges lourdes",u:'flying-whales-day-linnovation-aeronautique-prend-son-envol'},
+{t:'Pop-up Kérastase',y:2026,l:'La Fondation, Paris 17e',cat:'pop-up de marque',th:'lux',c:"l'agence GoodNight",n:1,kw:'kérastase|kerastase',r:"mise en lumière du lieu, création d'un show lumière et sonorisation du DJ booth",f:"3 jours ; soirées privées, parcours sensoriels et espaces de découverte ; la lumière comme outil de scénographie",u:'kerastase-une-experience-immersive-au-coeur-de-paris'},
+{t:"Garden Party de l'Institut Servier",y:2026,l:'Institut Servier, Paris-Saclay',cat:'événement interne',th:'lux',c:"l'agence EGG",n:0,kw:'servier|garden party',r:"dispositif technique et scénographique complet : sonorisation et mix live, lumière de la scène et de la guinguette, écrans d'affichage (paroles du karaoké), décoration estivale",f:"karaoké live, DJ set, ambiance guinguette, guirlandes et fanions",u:'garden-party-une-parenthese-estivale-placee-sous-le-signe-du-partage'},
+{t:'Moët & Chandon aux Habits de Lumière 2026',y:2026,l:'Épernay',cat:'spectacle immersif',th:'map',c:'Moët & Chandon',n:0,kw:'moët|moet|habits de lumière',r:"production complète du spectacle, de la conception artistique à la mise en œuvre technique",f:"création, narration, lumière, vidéo, son et scénographie ; conception artistique Patricia Citron et Marie-Jeanne Gauthé ; jeux de fontaines d'Aquatique Show ; confiance renouvelée de la Maison",u:'chandon-moet'},
+{t:'Convention des managers Apave 2026',y:2026,l:'',cat:'convention hybride',th:'hyb',c:"Groupe S'cape",n:1,kw:'apave',r:"captation live, streaming international, coordination son, lumière et vidéo, gestion des flux",f:"format hybride : 300 managers en présentiel et 1 500 collaborateurs connectés en direct depuis le monde entier ; animateur Stéphane Jobert",u:'convention-apave'},
+{t:"L'Aventure de la Lentille du Puy",y:2026,l:'Le Puy-en-Velay',cat:'muséographie immersive',th:'map',c:'Sabarot Wassner',n:0,kw:'lentille|puy',r:"conception et mise en œuvre de l'ensemble du dispositif technique",f:"rénovation et digitalisation du lieu ouvert au public ; salle immersive dédiée à la cuisine mêlant images, sons, odeurs et effets visuels ; création Cosmo AV ; un terrain que VLS explore encore peu : la muséographie",u:'laventure-de-la-lentille-du-puy-au-puy-en-velay'},
+{t:'Soirée Moma Group à la Galerie Bourbon',y:null,l:'Galerie Bourbon, Paris',cat:'soirée clients',th:'lux',c:'Moma Group',n:1,kw:'moma|galerie bourbon',r:"mapping vidéo et sonorisation",f:"soirée de nouvelle année des clients Moma Selection ; mapping extérieur et projection intérieure (voie lactée et habillage végétal) ; deux vidéoprojecteurs ; batterie autonome Wattman Link, mobile et économe en énergie",u:'moma-group'},
+{t:'Evolène en lumière',y:null,l:'Evolène (Valais, Suisse)',cat:'parcours lumineux',th:'map',c:'Evolène Région Tourisme',n:0,kw:'evolène|evolene',r:"accompagnement technique",f:"la rue centrale et les façades historiques du village transformées chaque soir en fresque lumineuse ; légende de la fée d'Evolène ; artiste Marie-Jeanne Gauthé",u:'evolene-en-lumiere'},
+{t:'« Lo Sagrado » à Bogota',y:null,l:'Cathédrale Primada de Colombia, Bogota',cat:'spectacle immersif',th:'map',c:'La Maison Production',n:1,kw:'bogota|sagrado|colombie',r:"étude et vidéo : installation du réseau du matériel technique (vidéoprojecteurs et serveurs médias)",f:"dix jours de représentations sur la Plaza de Bolívar ; vidéomapping, théâtre, danse et musique ; Ministère de la Culture colombien et Fondation Amigos del Teatro Mayor",u:'bogota'},
+{t:'Parcours des Pionnières',y:null,l:'Paris 5e et 6e',cat:'projection monumentale',th:'map',c:"l'association Parcours de Pionnières",n:1,kw:'pionnières|panthéon|8 mars',r:"projection",f:"Journée des droits des femmes, 8 mars ; portraits géants (Simone de Beauvoir, Christine de Pizan, Simone Veil, Marie Curie, Joséphine Baker…) sur le Panthéon, la Bibliothèque Sainte-Geneviève, l'église Sainte-Geneviève, la mairie du 6e et la Sorbonne",u:'parcours-des-pionnieres'},
+{t:"Convention de l'Institut International du Froid",y:null,l:'Salons Hoche, Paris',cat:'convention',th:'conv',c:'les Salons Hoche',n:1,kw:'froid|hoche|iif',r:"prestation technique complète",f:"traduction simultanée anglais/français ; diffusion vidéo en 4K avec système Pulse ; régie 3 caméras, écrans de rappel, retour scène et écran timer ; captation et enregistrement ; 9 micros HF main",u:'iif-iir'},
+{t:'Moët & Chandon aux Habits de Lumières',y:null,l:'Épernay',cat:'mapping',th:'map',c:'Moët & Chandon',n:1,kw:'moët|moet|habits de lumière|épernay',r:"partie technique : mapping vidéo, éclairage et sonorisation",f:"trois jours de festivités organisés par la Ville d'Épernay et le Comité de l'Avenue de Champagne, à la veille des fêtes ; directrice artistique Marie-Jeanne Gauthé",u:'moet-chandon'},
+{t:'Paris Cœur de Lumière à Saint-Sulpice',y:2024,l:'Église Saint-Sulpice, Paris',cat:'spectacle immersif',th:'map',c:'RD Productions',n:1,kw:'saint-sulpice|st sulpice|cœur de lumière|coeur de lumiere',r:"technique mapping vidéo et sonorisation",f:"du 16 octobre au 23 novembre 2024 dans la plus grande église de Paris ; 350 volontaires dont 300 acteurs et figurants bénévoles ; 6 000 m² au sol et 1 hectare de murs mis en lumière ; 1 350 places par représentation ; plus de 50 000 spectateurs attendus ; scène centrale de 100 m² ; plus de 40 vidéoprojecteurs laser ; plafond virtuel de faisceaux lumineux ; sonorisation multipoints",u:'paris-coeur-de-lumiere-spectacle-immersif-st-sulpice-2024'},
+{t:'Festi Lumi Bonifacio 2024',y:2024,l:'Bonifacio, Corse',cat:'festival',th:'map',c:"l'Agence Lumière",n:1,kw:'bonifacio|festi lumi',r:"toute la technique vidéomapping",f:"4, 5 et 6 juillet ; 9e édition ; mappings géants, œuvres lumineuses et spectacles vivants ; parcours nocturne dans la cité des falaises ; fondateur de l'Agence Lumière : Régis Clouzet",u:'2024-festi-lumi-bonifacio'},
+{t:'Executive Forum aux Yachts de Paris',y:2024,l:'Yachts de Paris',cat:'forum',th:'conv',c:'Little Big Woman',n:0,kw:'executive forum|yachts de paris|little big woman',r:"partenaire technique",f:"expérience immersive avec plusieurs écrans, système son et scène centrale ; dans le cadre du partenariat VLS avec les Yachts de Paris",u:'2024--executive-forum---lbw---yachts-de-paris'},
+{t:'Millénaire du Mont-Saint-Michel',y:2023,l:'Mont-Saint-Michel',cat:'mapping monumental',th:'map',c:'les Ateliers BK',n:1,kw:'mont-saint-michel|mont saint michel',r:"technique mapping vidéo, éclairage et sonorisation",f:"vendredi 23 juin, solstice du Millénaire ; 36 projecteurs vidéo laser et 20 automatiques Ayrton Cobra répartis dans l'édifice ; Établissement public national du Mont-Saint-Michel et Centre des monuments nationaux ; site inscrit au patrimoine mondial de l'Unesco",u:'millenaire-du-mont-saint-michel-solstice-d-ete-2023'},
+{t:"450 ans de l'Université de Lorraine",y:2023,l:'Église Saint-Martin, Pont-à-Mousson',cat:'mapping',th:'map',c:'Damien Fontaine',n:1,kw:'pont-à-mousson|université de lorraine',r:"production ; modélisation 3D et implantation millimétrée de la création dans les systèmes vidéo",f:"spectacle « L'Université des Lumières » sur la façade de l'église Saint-Martin ; création visuelle de l'artiste Damien Fontaine",u:'2023-mapping-immersif-eglise-st-martin-de-pont-a-mousson---450-universite-de-lorraine---luniversite-des-lumieres'},
+{t:'Festi Lumi Bonifacio 2023',y:2023,l:'Bonifacio, Corse',cat:'festival',th:'map',c:"l'Agence Lumière",n:1,kw:'bonifacio|festi lumi',r:"mise en place de la technique",f:"juillet ; 8e édition consacrée aux peintres corses passés et contemporains ; parcours nocturne de 15 points d'intérêt ; spectacle vivant",u:'festi-lumi-bonifaccio-2023'},
+{t:"Cérémonie d'ouverture des Jeux Sportifs Arabes",y:2023,l:'Stade du 5 juillet, Alger',cat:'cérémonie',th:'map',c:"l'ONCI",n:1,kw:'alger|jeux sportifs arabes|panarabes',r:"technique du mapping vidéo : projecteurs 4K, serveurs médias et équipe artistique complémentaire",f:"5 juillet ; 15e édition des Jeux panarabes ; show de plus de deux heures (discours, défilé des athlètes, danseurs, drones, feux d'artifice) ; près de 5 000 athlètes de 22 pays ; 34 disciplines",u:'jeux-sportifs-arabes-2023---stade-du-5-juillet---alger'},
+{t:"20 ans de l'OPDAD à Kinshasa",y:2023,l:'Kinshasa',cat:'sommet institutionnel',th:'conv',c:"l'agence J5CO",n:1,kw:'kinshasa|opdad',r:"kit complet vidéo, son et lumière avec équipe dédiée",f:"réunion annuelle de l'Organisation des Premières Dames d'Afrique pour le Développement, en juin, pour ses 20 ans ; une dizaine de Premières Dames et le président Félix Tshisekedi",u:'20eme-anniversaire--opdad-2023-kinshasa'},
+{t:'Onco & Hémato Days BMS',y:2023,l:'West Hotel, Nantes',cat:'congrès médical',th:'conv',c:'BMS',n:1,kw:'bms|onco|nantes',r:"design, technique audiovisuelle et décor",f:"218 professionnels de santé ; plénières ; 18 ateliers interactifs ; Parcours des Innovations valorisé par le décor Décoscratch ; relais spontané sur les réseaux sociaux par les participants",u:'2023-congres-onco-hemato-days-bms-westhotel-de-nantes'},
+{t:'Gala Les Bonnes Fées pour Octobre Rose',y:2023,l:'Hôtel Peninsula, Paris',cat:'gala caritatif',th:'lux',c:'les Bonnes Fées',n:1,kw:'octobre rose|bonnes fées|peninsula',r:"lumière, son et média ; illumination de la façade de l'hôtel",f:"5 octobre ; 4e gala caritatif de l'association, dans le cadre d'Octobre Rose ; collaboration de longue date avec le Peninsula",u:'2023-gala-caritatif-association-les-bonnes-fees--octobre-rose---hotel-peninsula'},
+{t:'Journées Particulières aux Caves Mercier',y:2023,l:'Caves Mercier, Épernay',cat:'parcours immersif',th:'map',c:'LVMH',n:1,kw:'mercier|journées particulières',r:"partenaire technique",f:"parcours vidéo, son et lumière créé par Marie-Jeanne Gauthé ; à 30 mètres sous terre, à bord d'un train autonome ; bas-reliefs du sculpteur Gustave Navlet ; caves entre 10 et 12 °C",u:'journees-particulieres-cave-mercier-lvmh-epernay-2023'},
+{t:'Soirée VIP Ducati West Europe',y:2023,l:'Hôtel Sinner, Paris',cat:'lancement produit',th:'lux',c:'Ducati West Europe',n:0,kw:'ducati|diavel|sinner',r:"design lumière, éclairage autonome",f:"présentation de la nouvelle Diavel V4 aux clients et partenaires ; prises de parole de la direction ; cocktail dînatoire ; standard haut de gamme",u:'soiree-ducati-west-europe'},
+{t:'Kick-off Sopra Banking Software',y:2023,l:'Le Dernier Étage, Paris',cat:'kick-off',th:'conv',c:'7ème Sud',n:1,kw:'sopra|kick-off|kick off',r:"production exécutive technique",f:"plus de 500 personnes réunies pour lancer l'année",u:'kick-off-sopra-banking-software-2023'},
+{t:'Distributor Meeting Vivacy',y:2023,l:'The Peninsula, Paris',cat:'convention',th:'conv',c:'Vivacy',n:1,kw:'vivacy',r:"production technique (Technisite Peninsula)",f:"150 distributeurs du laboratoire Vivacy réunis à l'hôtel The Peninsula",u:'2023--distributor-meetings-vivacy---peninsula---paris'},
+{t:'« Grand Mix » place des Terreaux',y:2022,l:'Lyon',cat:'Fête des Lumières',th:'map',c:'Inook',n:1,kw:'grand mix|terreaux|inook',r:"technique mapping vidéo et sonorisation",f:"Fête des Lumières du 8 au 11 décembre 2022 ; a remporté le Trophée des Lumières, prix du public (3 740 participants au vote) parmi 13 créations ; les portraits du Musée des Beaux-Arts deviennent une chorale grâce au deep fake ; spectacle de 8 minutes",u:'fete-des-lumiere-de-lyon-2022---place-des-terreaux-inook'},
+{t:'« TIME » à la cathédrale Saint-Jean',y:2022,l:'Lyon',cat:'Fête des Lumières',th:'map',c:'Anima Lux',n:1,kw:'saint-jean|time|filip roca',r:"technique mapping vidéo et sonorisation",f:"Fête des Lumières 2022 ; œuvre d'art génératif de Filip Roca et Zarko Komar mêlant images anciennes et formes simulées par algorithmes",u:'fete-des-lumieres-de-lyon-2022-cathedrale-st-jean---time-de-filip-roca'},
+{t:'« Le Voyageur Céleste » à Lyon',y:2022,l:'Quai des Célestins, Lyon',cat:'Fête des Lumières',th:'map',c:'les Ateliers BK',n:1,kw:'voyageur céleste|fourvière|célestins',r:"ensemble de la production",f:"les façades de la colline de Fourvière transformées en bande dessinée ; explorateur de l'espace créé par l'illustrateur Jérôme Jouvrat ; 3e au Trophée France 3 du public ; 4 jours lyonnais",u:'fete-des-lumieres-de-lyon-2022---le-voyageur-celeste---colline-de-fourviere-ateliers-bk'},
+{t:"Fête des Lumières d'Oullins",y:2022,l:'Parc Chabrières, Oullins',cat:'parcours lumineux',th:'map',c:'Gilbert Coudène',n:1,kw:'oullins|chabrières',r:"partenaire technique",f:"première fête des Lumières d'Oullins ; parcours lumineux d'environ 20 minutes ; film de 10 minutes sur l'histoire d'Oullins projeté sur la Maison Arlès Dufour ; reportage BFM",u:'fete-des-lumiere-oullins---illuminations-parc-chabrieres'},
+{t:"Chroma à la cathédrale d'Amiens",y:2022,l:'Amiens',cat:'mapping monumental',th:'map',c:'Spectre Lab',n:1,kw:'amiens|chroma',r:"technique mapping vidéo et sonorisation ; tours de projection conçues et fabriquées sur mesure",f:"tout l'été ; calage précis des images sur la façade et ambiance sonore sur le parvis ; Chroma 2 : parcours dans le parc de l'Évêché avec 4 zones de projection dont un arbre ; artiste Marc Vidal, design sonore Start-Rec ; candidature d'Amiens au titre de Capitale européenne de la culture 2028",u:'mapping-monumental-sur-la-cathedrale-damiens-spectacles-chroma-chroma-2---spectre-lab-2022'},
+{t:'« Embrasement » à Châtillon-sur-Chalaronne',y:null,l:'Église Saint-André, Châtillon-sur-Chalaronne',cat:'spectacle vivant',th:'map',c:'La Maison Production',n:1,kw:'embrasement|châtillon',r:"mapping vidéo, éclairage et sonorisation",f:"24 scènes mêlant mapping, éclairages et effets spéciaux ; plus de 100 acteurs et figurants ; plus de 9 500 billets vendus ; mise en scène Damien Fontaine",u:'mapping-immersif-lumieres-a-chatillon-en-dombes'},
+{t:'Mapping de Noël à Saint-Raphaël',y:2022,l:'Basilique Notre-Dame-de-la-Victoire, Saint-Raphaël',cat:'mapping',th:'map',c:'la Ville de Saint-Raphaël',n:0,kw:'saint-raphaël|saint raphael|st raphael',r:"production technique",f:"fin d'année 2022 ; mise en lumière sur le thème de la gourmandise ; tableaux de lumière créés par Damien Fontaine ; La Maison Production",u:'2022-mapping-de-noel--basilique-notre-dame-de-la-victoire---ville-de-st-raphael'},
+{t:"Mapping de la gare de l'Est",y:2022,l:"Gare de l'Est, Paris",cat:'mapping',th:'map',c:'SNCF Réseau IDF',n:1,kw:"gare de l'est|sncf",r:"production exécutive",f:"Journées du Patrimoine 2022 ; plus de 4 mois de collaboration ; cabines de projecteurs étanches faites sur mesure ; lyres étanches Ayrton Perseo Profile sur les colonnes et la rosace ; thème : électrification de la ligne P Paris–Gretz–Troyes ; création Studio Enorme",u:'mapping-gare-de-l-est-sncf-reseau-idf'},
+{t:"Fête des Images d'Épinal",y:2022,l:'Basilique Saint-Maurice, Épinal',cat:'mapping',th:'map',c:'Margot Kaluszyner',n:1,kw:'épinal|epinal',r:"production exécutive",f:"fin 2022 ; spectacle « Luth aux enfers » projeté sur le beffroi de la basilique ; artiste lauréate du concours de la Fête des Images 2021",u:'epinal-fete-des-images-2022'},
+{t:'Bal des pompiers de la caserne Bitche',y:2022,l:'Paris 19e',cat:'mapping',th:'map',c:"Groupe S'cape",n:1,kw:'pompiers|bitche|bspp',r:"production artistique et moyens techniques",f:"14 juillet, retour du bal des pompiers ; mapping de Franck Struxiano sur toute la façade, le long du canal de l'Ourcq ; projecteurs IVL Photon ; plus de 8 000 personnes ; Brigade de sapeurs-pompiers de Paris",u:'bal-des-sapeurs-pompiers-de-paris-19eme--caserne-bitche'},
+{t:'Le Grand Live Hanes sur le plateau TV de Buc',y:2021,l:'Studio VLS, Buc',cat:'événement digital',th:'hyb',c:"l'agence Graines d'Étoiles",n:0,kw:'hanes|graines d',r:"plateau TV et production",f:"événement digital réalisé sur le plateau TV de VLS à Buc",u:'2021-plateau-tv-buc-vls-le-grand-live-hanes'},
+{t:'Le plateau TV VLS de Buc',y:null,l:'Buc',cat:'studio TV',th:'hyb',c:'',n:0,kw:'plateau tv|studio',r:"création de plateaux TV pour le live streaming et les événements digitaux ou hybrides",f:"plateau TV dans les locaux de Buc",u:'plateau-tv'},
+{t:'Amir Cup au Al Rayyan Stadium',y:2020,l:'Qatar',cat:'mapping sur pelouse',th:'map',c:'Qatar Vision',n:0,kw:'qatar|amir cup|al rayyan',r:"production exécutive ; configuration technique optimisée à partir d'un cahier des charges",f:"mapping projeté sur la pelouse du stade pour l'Amir Cup",u:'mapping-stade-al-rayyan-stadium-quatar---amir-final-cup-2020'},
+{t:'Fête des Lumières de Sèvres',y:2019,l:'Sèvres',cat:'mapping',th:'map',c:"l'école des Gobelins",n:0,kw:'sèvres|sevres|gobelins',r:"production exécutive",f:"rendez-vous annuel de la « ville Lumière de l'Ouest parisien » ; création d'étudiants des Gobelins dirigés par Marie-Jeanne Gauthé ; service culturel de Sèvres ; du public quelle que soit la météo",u:'mapping-fete-des-lumieres-de-sevres-2019'}];
+const evUrl=e=>'https://www.vls.fr/projects/'+e.u;
+const THEMES={map:{l:'Mapping & grande image',re:/mapping|projection|façade|monument|cathédrale|basilique|église|lumières?|immersi/i},conv:{l:'Conventions & séminaires',re:/convention|séminaire|congrès|kick.?off|forum|meeting|sommet|plénière/i},live:{l:'Concerts & grands rassemblements',re:/concert|festival|spectacle|show|scène|rassemblement/i},lux:{l:'Marques, galas & soirées',re:/gala|soirée|pop.?up|luxe|marque|lancement|maison/i},hyb:{l:'Hybride, captation & studio',re:/hybride|streaming|captation|plateau|studio|direct|live/i},tech:{l:'Technique & coulisses',re:/coulisses|montage|régie|structure|énergie|technicien|sécurité/i}};
+const KIND={E:'Expertise',P:'Réalisation',C:'Coulisses',H:'Équipe',R:'Offre',Q:'Communauté',N:'Partenaires'};
+const L2=t=>t.trim().split('\n').map(l=>l.split('|'));
+
+/* ===================== MODÈLES DE SUJETS ===================== */
+/* type|format|condition|texte — conditions : c partenaire, y année, n chiffres, l lieu, m mapping, v convention/hybride */
+const TPL_EV=L2(`P|||{E} : retour sur un projet marquant
+P|num|n|{E} : le projet en quelques chiffres
+P|||{E} : le défi relevé par nos équipes
+P|||{E} : ce que le client attendait, ce que nous avons livré
+P|||{E} : pourquoi ce projet nous rend fiers
+P|||{E} : le lieu, le défi, la réponse VLS
+P|||{E} : en images
+P|||{E} : avant, pendant, après
+P|||{E} : 30 secondes pour (re)découvrir le projet
+P||y|Souvenir {Y} : {E}
+P||l|{L} : ce que nous y avons réalisé
+P|||{E} : un projet de type {K} signé VLS
+C|||{E} : les coulisses de l'installation
+C|||{E} : du premier repérage au jour J
+C|||{E} : ce que le public ne voit pas
+C|||{E} : une photo, une histoire
+C|||{E} : les contraintes du lieu et comment les anticiper
+C|||{E} : le choix du dispositif expliqué simplement
+H|||{E} : nos équipes sur le terrain
+H|||{E} : le rôle de chacun le jour J
+H|||{E} : merci aux équipes mobilisées
+H|||{E} : ce que nos techniciens retiennent de cette mission
+N|c||{E} : merci à {C} pour sa confiance
+N|c||{E} : une belle collaboration avec {C}
+N|||{E} : la force d'un réseau de partenaires
+E|list||{E} : 3 enseignements à retenir
+E|||{E} : ce que ce projet dit de notre métier
+E|||{E} : pourquoi ce lieu demandait une approche sur mesure
+E|list||{E} : les étapes de notre intervention
+E|||{E} : la sécurité, priorité invisible du dispositif
+E|||{E} : ce qu'exige techniquement un projet de type {K}
+E|||{E} : le rôle du bureau d'étude sur ce type de projet
+E|||{E} : lumière, son, vidéo, comment tout se synchronise
+Q|q||{E} : vous y étiez ? Racontez-nous
+Q|q||{E} : quelle image retenez-vous ?
+Q|q||{E} : quel détail technique vous intrigue ? Posez vos questions
+R|||{E} : le type de dispositif que nous pouvons déployer pour vous
+R|||{E} : un projet similaire ? Une proposition en 24 heures
+R|||{E} : de l'étude technique à l'exploitation, tout en interne
+E||m|{E} : comment caler une image sur une architecture
+E||m|{E} : projeter sur un lieu patrimonial sans l'abîmer
+C||m|{E} : les essais de nuit avant la première
+Q|q|m|{E} : quel monument aimeriez-vous voir en lumière ?
+E||v|{E} : la régie, chef d'orchestre de la journée
+E||v|{E} : garder l'attention d'une salle pleine
+C||v|{E} : la veille de l'événement, en salle`);
+const SERV=L2(`le mapping 3D|map
+la projection monumentale|map
+les murs LED événementiels|conv
+les dômes 360° et le LED floor|map
+l'éclairage scénique|live
+la mise en lumière architecturale|map
+la sonorisation événementielle|live
+la traduction simultanée|conv
+la captation vidéo et le streaming|hyb
+les événements hybrides|hyb
+la régie technique|tech
+les structures, ponts et accroches|tech
+la distribution électrique|tech
+la scénographie immersive|lux
+l'interactivité (capteurs, AR, VR)|lux
+les batteries autonomes en événementiel|tech
+les serveurs médias|map`);
+const TPL_S=L2(`E|||{S} : ce qu'il faut savoir avant de se lancer
+E|list||{S} : 5 erreurs à éviter
+E|list||{S} : 3 critères pour bien choisir
+E|||{S} : ce qui fait varier le budget
+E|||{S} : combien de temps prévoir ?
+E|list||{S} : les questions à poser à votre prestataire
+E|||{S} : mythe ou réalité ?
+E|||{S} : expliqué simplement
+E|list||{S} : la checklist avant le jour J
+E|||{S} : les contraintes techniques à anticiper
+E|||{S} : en intérieur ou en extérieur, ce qui change
+E|||{S} : le vocabulaire à connaître
+E|||{S} : les tendances à suivre
+C|||{S} : dans les coulisses de nos équipes
+C|||{S} : comment nous préparons le matériel
+H|||{S} : la parole à un technicien
+Q|q||{S} : quelle est votre plus grande question ?
+Q|q||{S} : l'avez-vous déjà intégré à un événement ?
+R|||{S} : ce que VLS propose concrètement
+R|||{S} : une proposition en 24 heures
+P|||{S} : nos réalisations en un coup d'œil
+N|||{S} : ce que nous observons chez nos clients`);
+const FORMATS=L2(`séminaire d'entreprise|conv
+convention d'entreprise|conv
+lancement de produit|lux
+road show|conv
+défilé de mode|lux
+congrès|conv
+festival|live
+conférence de presse|conv
+plateau TV|hyb
+concert|live
+spectacle son et lumière|map
+gala|lux
+stand de salon professionnel|conv
+soirée d'entreprise|lux
+événement hybride|hyb
+fête des lumières|map
+inauguration|lux
+cérémonie officielle|live
+kick-off d'entreprise|conv
+parcours immersif|map`);
+const TPL_F=L2(`E|list||{F} : la checklist technique
+E|||{F} : le dispositif audiovisuel idéal
+E|list||{F} : les erreurs techniques à éviter
+E|||{F} : comment estimer le budget technique
+E|||{F} : quand contacter son prestataire technique ?
+E|||{F} : son, lumière, vidéo, par où commencer ?
+Q|q||{F} : quel est votre pire souvenir technique ?
+P|||{F} : ce que nous avons réalisé
+C|||{F} : une journée type pour nos équipes
+R|||{F} : comment VLS vous accompagne`);
+const BLOG=`Structure, accroche, levage : la checklist sécurité
+Spectacle son et lumière sur patrimoine : de l'appel d'offres à la première
+Mapping 3D sur monument historique : autorisations et délais
+Régie technique : qui fait quoi le jour J ?
+Fiche technique d'événement : ce qu'il faut remettre au prestataire
+Devis technique audiovisuel : les 7 postes qui font le prix
+10 questions à poser à votre prestataire technique avant de signer
+Prestataire technique événementiel à Paris : périmètre, délais, équipe
+Sonorisation d'un événement d'entreprise : le guide
+Mur LED événementiel : bien le choisir
+Événement hybride : réussir sa captation et son streaming
+Salon professionnel : la technique audiovisuelle d'un stand
+Convention d'entreprise : réussir la production audiovisuelle
+Scénographie événementielle : créer un espace immersif
+Les missions d'un prestataire technique événementiel
+Vidéo mapping et projection monumentale : techniques et budgets
+Cahier des charges technique : le rédiger sans rien oublier
+Combien coûte un prestataire technique audiovisuel ?
+Vidéomapping ou mapping 3D : les différences
+Combien coûte un mapping 3D ?
+Mapping 3D : définition et usages
+Festival et concert : les coulisses d'une production live
+Lancement de produit : le pouvoir de l'audiovisuel
+Énergie et structures : l'infrastructure invisible de l'événement
+Soirée d'entreprise : le guide technique
+Éclairage scénique : découpes, lyres, projecteurs
+Organiser un séminaire d'entreprise réussi
+Écran LED ou vidéoprojecteur : lequel choisir ?
+Comment sonoriser un événement professionnel
+Comment choisir l'éclairage d'un événement
+Captation vidéo et streaming d'un événement professionnel
+Comment choisir son prestataire audiovisuel
+La projection architecturale en quelques points
+Les tendances de l'événementiel`.split('\n');
+const OTHER=L2(`Rendre l'éphémère inoubliable : ce que signifie notre signature|N|
+Depuis 1983 : plus de 40 ans de technique événementielle|N|
+Pionnier du mapping depuis 1983 : ce qui a changé|E|
+Buc, notre base à quelques minutes de Versailles|C|
+Le groupe MPM : ce que ça change pour nos clients|R|
+Un interlocuteur unique, du brief au démontage|R|
+Une proposition en 24 heures : comment c'est possible ?|R|
+Le bureau d'étude intégré : pourquoi chaque projet commence par une étude|E|
+Modélisation 3D, prévisualisation, audit terrain : les premiers jours d'un projet|E|list
+Vidéo, lumière, son, structure, énergie : nos 5 métiers en un post|E|list
+Grande Image, Event, Technisite : nos trois expertises|R|list
+Technisite : un partenaire technique, pas un simple prestataire|R|
+Hôtels et centres de congrès : déléguer la technique à une équipe dédiée|E|
+Disponibles 7 jours sur 7 : la promesse Technisite|R|
+Du matériel complémentaire en 2 heures : la réactivité Technisite|R|
+Notre politique RSE : un parc entretenu et reconditionné|E|
+Tournées mutualisées et logistique optimisée : un événementiel plus sobre|E|
+Matériel à basse consommation : ce que ça change sur un événement|E|
+Politique RH inclusive et formation interne chez VLS|H|
+Nous recrutons : rejoindre les équipes VLS|H|
+Le métier de technicien vidéo expliqué|H|
+Le métier de régisseur général expliqué|H|
+Le métier de chef de projet technique expliqué|H|
+Le métier de technicien lumière expliqué|H|
+Le métier d'ingénieur du son en événementiel|H|
+Le métier de rigger : travailler en hauteur en sécurité|H|
+Le métier de chargé d'affaires événementiel|H|
+Une journée au bureau d'étude|C|
+Une journée au dépôt : la préparation du matériel|C|
+Le chargement du camion : un art à part entière|C|
+Le démontage, la partie que personne ne voit|C|
+Les tests de la veille : pourquoi on ne les saute jamais|E|
+Le plan B météo d'un mapping en extérieur|E|
+Ce que nous vérifions avant chaque mise en service|C|list
+Trophée Heavent 2019 de la meilleure réalisation audiovisuelle : retour en arrière|P|
+Heavent : pourquoi le salon compte pour la profession|N|
+Les rendez-vous de l'événementiel à ne pas manquer cette saison|N|list
+Janvier : vœux et kick-off d'entreprise, la technique qui lance l'année|E|
+Février : préparer les conventions du printemps|E|
+Mars : le 8 mars et les projections engagées|E|
+Avril : la saison des lancements de produit|E|
+Mai : congrès et séminaires, la haute saison|E|
+Juin : solstice, garden parties et fêtes d'été|E|
+Juillet : les festivals de lumière de l'été|E|
+Août : préparer la rentrée événementielle|E|
+Septembre : Journées du Patrimoine, le patrimoine en lumière|E|
+Octobre : Octobre Rose et les galas engagés|E|
+Novembre : les illuminations de fin d'année se préparent maintenant|E|
+Décembre : fêtes des lumières et mappings de Noël|E|
+Mapping de Noël : quand faut-il lancer le projet ?|E|
+Fête des lumières : le calendrier de préparation pour une ville|E|list
+Collectivités : faites rayonner votre ville autrement|R|
+Offices de tourisme : la lumière comme attraction nocturne|E|
+Patrimoine et lumière : sublimer sans dénaturer|E|
+Églises, cathédrales, châteaux : les spécificités du patrimoine|E|
+Autorisations d'un mapping sur monument : ce qu'il faut savoir|E|
+Agences événementielles : qu'attendez-vous d'un prestataire technique ?|Q|q
+Agences : comment nous travaillons à vos côtés|R|
+Maisons de luxe : la lumière au service de l'identité de marque|E|
+Hôtels de prestige : discrétion et standing de la technique|E|
+Laboratoires et congrès médicaux : les exigences techniques|E|
+Événements institutionnels : fiabilité et coordination avant tout|E|
+Grands rassemblements : la technique face à des dizaines de milliers de personnes|E|
+À l'international : préparer un projet hors de France|E|
+Alger, Kinshasa, Bogota, Qatar : nos projets à l'étranger|P|list
+Lyon, Amiens, Épinal, Sèvres : la France des fêtes de lumière|P|list
+Épernay : nos projets en Champagne|P|
+Paris : nos lieux emblématiques|P|list
+Les artistes avec qui nous aimons travailler|N|
+Damien Fontaine, Marie-Jeanne Gauthé, Ateliers BK : des fidélités de longue date|N|
+La relation entre l'artiste et le technicien sur un mapping|E|
+Ce que l'IA et l'art génératif changent pour le mapping|E|
+Deep fake et mapping : le cas « Grand Mix »|E|
+Prix du public : quand les spectateurs votent pour un mapping|P|
+Vidéoprojecteur laser : pourquoi il a changé le mapping|E|
+4K en grand format : la résolution compte-t-elle vraiment ?|E|
+Le pitch d'un mur LED expliqué simplement|E|
+Pourquoi un mapping ne se fait pas en plein jour|E|
+Le son spatialisé : envelopper le public|E|
+Traduction simultanée : la technique au service du multilingue|E|
+Streaming international : garantir un direct sans coupure|E|
+Le plan de feu : la partition du technicien lumière|E|
+L'énergie, le poste qu'on oublie toujours|E|
+Groupe électrogène ou batterie autonome ?|E|
+Structure et levage : les vérifications de sécurité|E|list
+Le scan 3D d'un lieu : à quoi ça sert ?|E|
+La prévisualisation 3D : voir l'événement avant qu'il existe|E|
+Combien de temps faut-il pour installer un mapping ?|Q|q
+Selon vous, combien de vidéoprojecteurs pour éclairer une cathédrale ?|Q|q
+Mapping ou mur LED : vous choisiriez quoi ?|Q|q
+Quel monument rêveriez-vous de voir en lumière ?|Q|q
+Votre pire souvenir technique en événement ?|Q|q
+Le détail technique qui vous a le plus bluffé sur un événement|Q|q
+Ce qu'on nous demande le plus souvent en rendez-vous|Q|q
+Mythe : un mapping, c'est juste un vidéoprojecteur|E|
+Mythe : la technique, ça se règle le jour J|E|
+Mythe : un événement hybride, c'est une caméra et une connexion|E|
+Mythe : le prestataire le moins cher coûte moins cher|E|
+Les 5 questions à poser avant de signer un devis technique|E|list
+Le brief idéal pour un prestataire technique|E|list
+Ce qui fait varier le prix d'une prestation technique|E|list
+Pourquoi deux devis peuvent varier du simple au triple|E|
+Quand contacter son prestataire technique ?|E|
+Urgence : ce que nous pouvons faire même avec peu de délai|R|
+Location de matériel avec technicien : comment ça marche|R|
+Régie seule ou prestation complète : que choisir ?|E|
+Le plateau TV de Buc : un studio pour vos lives et événements digitaux|R|
+Événements digitaux : ce que permet un plateau TV|E|
+Rendre l'éphémère inoubliable : 5 projets qui l'illustrent|P|list
+Nos réalisations de l'année en un carrousel|P|
+Nos mappings les plus marquants|P|list
+Nos conventions les plus ambitieuses|P|list
+Rétrospective : l'année VLS en 10 images|P|list
+Bonne année : nos vœux en lumière|H|
+Merci à nos clients et partenaires|N|
+Merci à nos techniciens|H|
+Portrait : un membre de l'équipe VLS|H|
+Les coulisses d'un tournage de clip en live|C|
+Muséographie immersive : images, sons et odeurs|E|
+Sobriété énergétique et événementiel : nos engagements|E|
+Accessibilité des événements : ce que la technique peut faire|E|
+La lumière comme outil de scénographie|E|
+Garden party, soirée, gala : créer une ambiance|E|
+Lancer un produit : la mise en lumière qui fait la différence|E|
+Défilé de mode : la lumière, premier styliste|E|
+Concert : le dialogue entre son, lumière et vidéo|E|
+Kick-off d'entreprise : lancer l'année avec impact|E|
+Sommet international : protocole et technique|E|`);
+
+/* ===================== BANQUE DE SUJETS ===================== */
+let BANK=null;
+const thOf=t=>{for(const k in THEMES)if(THEMES[k].re.test(t))return k;return''};
+function bank(){
+  if(BANK)return BANK;const out=[],seen=new Set();
+  const add=x=>{if(seen.has(x.t))return;seen.add(x.t);out.push(x)};
+  EV.forEach((e,ei)=>TPL_EV.forEach(([k,f,c,t])=>{
+    if(c==='c'&&!e.c)return;if(c==='y'&&!e.y)return;if(c==='n'&&!e.n)return;if(c==='l'&&!e.l)return;
+    if(c==='m'&&e.th!=='map')return;if(c==='v'&&!['conv','hyb'].includes(e.th))return;
+    add({t:t.replace(/\{E\}/g,e.t).replace(/\{C\}/g,e.c).replace(/\{Y\}/g,e.y).replace(/\{L\}/g,e.l).replace(/\{K\}/g,e.cat.toLowerCase()),k,f,e:ei,src:'ev',th:e.th})}));
+  SERV.forEach(([s,th])=>TPL_S.forEach(([k,f,,t])=>add({t:t.replace('{S}',cap(s)),k,f,e:-1,src:'serv',th})));
+  FORMATS.forEach(([s,th])=>TPL_F.forEach(([k,f,,t])=>add({t:t.replace('{F}',cap(s)),k,f,e:-1,src:'fmt',th})));
+  BLOG.forEach(b=>{const th=thOf(b);add({t:b,k:'E',f:'',e:-1,src:'blog',th});add({t:b+' : l\'essentiel en 3 points',k:'E',f:'list',e:-1,src:'blog',th});add({t:b+' : vos questions, nos réponses',k:'Q',f:'q',e:-1,src:'blog',th})});
+  OTHER.forEach(([t,k,f])=>add({t,k,f:f||'',e:-1,src:'other',th:thOf(t)}));
+  return BANK=out}
+function evOfTopic(topic){const it=bank().find(x=>x.t===topic);if(it&&it.e>=0)return[it.e];const low=topic.toLowerCase();return EV.map((e,i)=>new RegExp(e.kw,'i').test(low)?i:-1).filter(i=>i>=0)}
+const fiche=e=>`- ${e.t}${e.y?' ('+e.y+')':''}${e.l?' — lieu : '+e.l:''}${e.c?' — client / partenaire principal : '+e.c:''} — rôle de VLS : ${e.r} — faits : ${e.f} — page : ${evUrl(e)}`;
+const HIGHLIGHTS=[15,18,0,28,7,21,37];
+function evCtx(topic){
+  const ids=evOfTopic(topic);
+  if(ids.length)return`\n\nFICHE RÉALISATION (source : vls.fr, faits vérifiés) :\n${ids.slice(0,3).map(i=>fiche(EV[i])).join('\n')}\nUtilise ces faits sans en ajouter. Si un chiffre ou un détail n'y figure pas, ne l'invente pas.`;
+  const it=bank().find(x=>x.t===topic),th=(it&&it.th)||thOf(topic);
+  let rel=th?EV.map((e,i)=>({e,i})).filter(x=>x.e.th===th).map(x=>x.i):[];
+  if(rel.length<3)rel=HIGHLIGHTS;
+  return`\n\nRÉALISATIONS VLS CITABLES COMME PREUVE (facultatif, faits vérifiés, n'en cite qu'une ou deux si c'est utile) :\n${rel.slice(0,5).map(i=>fiche(EV[i])).join('\n')}\nN'invente aucune autre réalisation, aucun client et aucun chiffre.`}
+
+/* ===================== IDÉES DU JOUR ===================== */
+function postKind(p){const it=p.topic&&bank().find(x=>x.t===p.topic);if(it)return it.k;const t=p.text||'';
+  if(/merci|confiance|partenaire/i.test(t))return'N';if(/coulisses|montage|installation/i.test(t))return'C';if(/réalis|projet|spectacle|mapping/i.test(t))return'P';return'E'}
+function ideaWeights(){
+  const M=measured();if(M.length<3)return null;
+  const val=p=>(+p.m.likes||0)+3*(+p.m.comments||0)+3*(+p.m.shares||0)+3*(+p.m.saves||0)+2*(+p.m.clicks||0);
+  const g=M.reduce((t,p)=>t+val(p),0)/M.length;if(!g)return null;
+  const ratio=a=>(a.reduce((t,p)=>t+val(p),0)+g)/(a.length+1)/g;
+  const th={};Object.keys(THEMES).forEach(k=>{const a=M.filter(p=>THEMES[k].re.test(p.text));th[k]=a.length?ratio(a):1});
+  const fm={};['q','list','num'].forEach(f=>{const a=M.filter(p=>feats(p.text)[f]),o=M.length-a.length;fm[f]=a.length>=4&&o>=4?ratio(a):1});
+  const kd={};Object.keys(KIND).forEach(k=>{const a=M.filter(p=>postKind(p)===k);kd[k]=a.length>=3?ratio(a):1});
+  return{th,fm,kind:kd,n:M.length}}
+let RND=Math.random;
+function seedRnd(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19}
+  let a=h>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+let ideaState={list:[],key:''};
+function drawIdeas(seen){
+  const bk=bank(),w=ideaWeights(),used=new Set(S.posts.map(p=>p.topic));
+  let pool=bk.filter(x=>!used.has(x.t)&&!seen.has(x.t));if(pool.length<20)pool=bk.filter(x=>!used.has(x.t));if(pool.length<20)pool=bk;
+  const sc=x=>w?(x.th?w.th[x.th]||1:1)*(x.f?w.fm[x.f]||1:1)*(w.kind[x.k]||1):1;
+  const picked=[],hot=new Set(),ce={},ck={},cs={};
+  const ok=x=>!picked.includes(x)&&(x.e<0||!ce[x.e])&&(ck[x.k]||0)<3&&(cs[x.src]||0)<(x.src==='ev'?6:3);
+  const take=(n,wf,hotOn)=>{for(let i=0;i<n;i++){
+    const c=pool.filter(ok);if(!c.length)break;
+    let r=RND()*c.reduce((t,x)=>t+wf(x),0),y=c[c.length-1];
+    for(const x of c){r-=wf(x);if(r<=0){y=x;break}}
+    picked.push(y);if(y.e>=0)ce[y.e]=1;ck[y.k]=(ck[y.k]||0)+1;cs[y.src]=(cs[y.src]||0)+1;if(hotOn&&sc(y)>=1.2)hot.add(y)}};
+  /* priorité aux réalisations : poids x3 */
+  const base=x=>x.src==='ev'?3:1;
+  take(w?7:10,x=>base(x)*(w?Math.pow(sc(x),3):1),!!w);
+  if(w)take(3,base,false);
+  return picked.map(y=>({t:y.t,k:y.k,hot:hot.has(y)}))}
+const ideaKey=()=>{const r=S.ideaRef,n=r&&r.d===today()?r.n:0;return today()+'|'+n+'|'+measured().length};
+function newIdeas(refresh){
+  if(refresh){const r=S.ideaRef;S.ideaRef={d:today(),n:(r&&r.d===today()?r.n:0)+1};save()}
+  const r=S.ideaRef,n=r&&r.d===today()?r.n:0,mc=measured().length,seen=new Set();let list=[];
+  for(let i=0;i<=n;i++){list.forEach(x=>seen.add(x.t));RND=seedRnd('vls|'+today()+'|'+i+'|'+mc);list=drawIdeas(seen)}
+  ideaState={list,key:ideaKey()};if(refresh)render()}
+const EXR={q:'',p:'',k:'',n:40};
+function exrList(){const q=EXR.q.toLowerCase();return bank().filter(x=>(!EXR.p||(EXR.p.startsWith('e:')?String(x.e)===EXR.p.slice(2):x.src===EXR.p))&&(!EXR.k||x.k===EXR.k)&&(!q||x.t.toLowerCase().includes(q)))}
+function exrInner(){const l=exrList();return`<div class="mut" style="margin:10px 0">${fmt(l.length)} sujets${l.length>EXR.n?` (${EXR.n} affichés)`:''} · un clic remplit le champ sujet ci-dessous</div><div class="row" style="flex-wrap:wrap;gap:8px">${l.slice(0,EXR.n).map(x=>`<button class="btn sm sec idea" title="${KIND[x.k]}" data-t="${esc(x.t)}" onclick="useTopic(this.dataset.t,false)">${esc(x.t)}</button>`).join('')}</div>${l.length>EXR.n?`<button class="btn sm" style="margin-top:10px" onclick="EXR.n+=40;exrDraw()">Afficher plus</button>`:''}`}
+function exrDraw(){const e=$('#exr');if(e)e.innerHTML=exrInner()}
+function exrSet(k,v){EXR[k]=v;EXR.n=40;exrDraw()}
+function exrHtml(){
+  const evs=EV.map((e,i)=>[i,e.t+(e.y?' ('+e.y+')':'')]);
+  return`<div class="card" style="margin-bottom:14px"><b>🗂️ Explorer les ${fmt(bank().length)} sujets</b> <span class="mut">(recherche, réalisation, type de post)</span>
+  <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:8px"><input class="f1" style="min-width:180px" placeholder="Rechercher (ex : mapping, Lyon, convention, Noël…)" value="${esc(EXR.q)}" oninput="exrSet('q',this.value)">
+  <select style="width:auto;max-width:100%" onchange="exrSet('p',this.value)"><option value="">Toutes les sources</option><optgroup label="Par réalisation">${evs.map(([i,l])=>`<option value="e:${i}"${EXR.p==='e:'+i?' selected':''}>${esc(l)}</option>`).join('')}</optgroup><optgroup label="Autres">${[['ev','Toutes les réalisations'],['serv','Expertises techniques'],['fmt','Formats d\'événement'],['blog','Guides du blog'],['other','Marque, équipe, saisons']].map(([v,l])=>`<option value="${v}"${EXR.p===v?' selected':''}>${l}</option>`).join('')}</optgroup></select>
+  <select style="width:auto" onchange="exrSet('k',this.value)"><option value="">Tous les types</option>${Object.entries(KIND).map(([k,v])=>`<option value="${k}"${EXR.k===k?' selected':''}>${v}</option>`).join('')}</select></div>
+  <div id="exr">${exrInner()}</div></div>`}
+function useIdea(i){return useTopic(ideaState.list[i].t,true)}
+async function useTopic(tt,run){
+  $('#topic').value=tt;
+  if(!run){$('#topic').scrollIntoView({behavior:'smooth',block:'center'});return}
+  if(S.settings.apiKey)return generate();
+  await copyPrompt('gen');const t=$('#paste_gen');if(t){t.scrollIntoView({behavior:'smooth',block:'center'});t.focus()}
+}
+function ideasHtml(){
+  if(!ideaState.list.length||ideaState.key!==ideaKey())newIdeas(false);
+  const w=ideaWeights(),tp=(S.trends&&S.trends.posts)||[];
+  return`<div class="card" style="margin-bottom:14px"><div class="row"><div class="f1"><b>💡 10 idées de sujets du jour</b> <span class="mut">(${fmt(bank().length)} sujets en réserve · ${S.settings.apiKey?'un clic génère les brouillons':'un clic remplit le sujet et copie le prompt pour Claude.ai'})</span>
+  <div class="mut" style="margin-top:4px">${w?`★ = proche de ce qui a le mieux marché sur vos ${w.n} posts mesurés (thème, format et type de post). Les autres testent de nouvelles pistes. La liste change chaque jour et dès qu'un nouveau post est mesuré ; « Actualiser » en tire une autre.`:'Pas encore assez de résultats mesurés : sujets variés, centrés sur les réalisations, pour apprendre vite.'}</div></div>
+  <button class="btn sm" onclick="newIdeas(true)">🔄 Actualiser</button></div>
+  <div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px">${ideaState.list.map((x,i)=>`<button class="btn sm sec idea" title="${KIND[x.k]}" onclick="useIdea(${i})">${x.hot?'★ ':''}${esc(x.t)}</button>`).join('')}</div>
+  ${tp.length?`<div style="margin-top:16px"><b>📝 Posts déjà prêts (issus de Tendances)</b> <span class="mut">(un clic = brouillon immédiat)</span>
+  <div style="display:grid;gap:8px;margin-top:10px">${tp.map((p,i)=>`<button class="btn sm sec idea" onclick="addSug(${i})">${PLN[p.platform==='instagram'?'instagram':'linkedin']} · ${esc((p.text||'').replace(/\s+/g,' ').slice(0,90))}…</button>`).join('')}</div></div>`:''}</div>`}
+
+/* ===================== VUES ===================== */
+const TABS=[['dashboard','📊 Dashboard'],['input','✍️ Saisie'],['generate','✨ Générer'],['trends','🔥 Tendances'],['posts','📝 Mes posts'],['learn','🧠 Apprentissage'],['settings','⚙️ Réglages']];
+function go(t){tab=t;render();window.scrollTo(0,0)}
+const ICO={dashboard:'<rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/>',input:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',generate:'<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>',trends:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',posts:'<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/>',learn:'<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 00-3.5 10.9c.5.4.8 1 .8 1.6V16h5.4v-.5c0-.6.3-1.2.8-1.6A6 6 0 0012 3z"/>',settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>'};
+const navBtn=([k,l])=>`<button class="${k===tab?'on':''}" onclick="go('${k}')"><svg viewBox="0 0 24 24">${ICO[k]||''}</svg><span>${l.replace(/^\S+\s/,'')}</span></button>`;
+function render(){
+  const nav=TABS.map(navBtn).join('');
+  $('#nav').innerHTML=nav;$('#mnav').innerHTML=nav;
+  Object.values(charts).forEach(c=>c.destroy());charts={};
+  $('#app').innerHTML=({dashboard:vDash,input:vInput,generate:vGen,trends:vTrends,posts:vPosts,learn:vLearn,settings:vSet})[tab]();
+  if(tab==='dashboard')drawCharts();
+}
+const dashPosts=()=>{const since=period?Date.now()-period*864e5:0;return measured().filter(p=>new Date(p.publishedAt||p.createdAt)>=since&&(dnet==='all'||p.platform===dnet))};
+function vDash(){
+  const P=dashPosts();
+  const sum=k=>P.reduce((s,p)=>s+(+p.m[k]||0),0);
+  const imp=sum('impressions'),it=P.reduce((s,p)=>s+inter(p),0),cl=sum('clicks');
+  const top=[...P].sort((a,b)=>er(b)-er(a)).slice(0,6);
+  return`<h1>Bonjour ${esc(S.user||'Lise')} 👋</h1><p class="sub">${new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})} · VLS · objectifs à 90 jours et performance de tes publications</p>${vGoals()}
+  <div class="row" style="margin-bottom:16px">${[[7,'7 jours'],[30,'30 jours'],[90,'90 jours'],[0,'Tout']].map(([v,l])=>`<button class="btn sm ${period===v?'':'sec'}" onclick="period=${v};render()">${l}</button>`).join('')}<span style="width:16px"></span>${[['all','Tous réseaux'],['linkedin','LinkedIn'],['instagram','Instagram']].map(([v,l])=>`<button class="btn sm ${dnet===v?'':'sec'}" onclick="dnet='${v}';render()">${l}</button>`).join('')}</div>
+  ${!P.length?`<div class="card empty">Aucun résultat sur cette période.<br><br>Importe le PDF de tes statistiques dans Réglages, ou saisis tes posts publiés et leurs résultats.<br><br><button class="btn" onclick="go('settings')">📥 Importer un PDF</button> <button class="btn sec" onclick="go('input')">✍️ Saisir à la main</button></div>`:`
+  <div class="grid kpis">
+   <div class="card kpi"><span class="ar">↗</span><div class="l">Posts mesurés</div><div class="v">${P.length}</div></div>
+   <div class="card kpi"><span class="ar">↗</span><div class="l">Impressions / vues</div><div class="v">${fmt(imp)}</div></div>
+   <div class="card kpi"><span class="ar">↗</span><div class="l">Interactions</div><div class="v">${fmt(it)}</div></div>
+   <div class="card kpi"><span class="ar">↗</span><div class="l">Taux d'engagement</div><div class="v good">${fmt(imp?it/imp*100:0)}%</div></div>
+   <div class="card kpi"><span class="ar">↗</span><div class="l">Clics</div><div class="v">${fmt(cl)}</div></div>
+   <div class="card kpi"><span class="ar">↗</span><div class="l">CTR</div><div class="v good">${fmt(imp?cl/imp*100:0)}%</div></div>
+  </div>
+  <div class="grid two" style="margin-bottom:14px"><div class="card"><b>Évolution</b><canvas id="c1"></canvas></div><div class="card"><b>Interactions par réseau</b><canvas id="c2"></canvas></div></div>
+  <div class="grid two" style="margin-bottom:14px"><div class="card"><b>Détail des interactions</b><canvas id="c3"></canvas></div><div class="card"><b>Clics par post</b><canvas id="c4"></canvas></div></div>
+  <div class="card"><b>🏆 Top posts</b><div style="overflow:auto"><table style="margin-top:10px"><tr><th>Réseau</th><th>Post</th><th>Impr.</th><th>Engag.</th><th>Clics</th><th>ER</th></tr>${top.map(p=>`<tr><td><span class="tag ${PLT[p.platform]}">${p.platform==='linkedin'?'LI':'IG'}</span></td><td>${esc(p.text.slice(0,70))}…</td><td>${fmt(p.m.impressions)}</td><td>${fmt(inter(p))}</td><td>${fmt(p.m.clicks)}</td><td class="good">${fmt(er(p))}%</td></tr>`).join('')}</table></div></div>`}`;
+}
+function drawCharts(){
+  if(typeof Chart==='undefined')return;
+  const P=dashPosts().sort((a,b)=>new Date(a.publishedAt||a.createdAt)-new Date(b.publishedAt||b.createdAt));
+  if(!P.length)return;
+  Chart.defaults.color='#8d93a8';Chart.defaults.borderColor='#242836';
+  const lab=P.map(p=>new Date(p.publishedAt||p.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}));
+  charts.a=new Chart($('#c1'),{type:'line',data:{labels:lab,datasets:[{label:'Taux d\'engagement %',data:P.map(er),borderColor:'#3d6bff',tension:.3},{label:'CTR %',data:P.map(ctr),borderColor:'#19e68c',tension:.3}]}});
+  const by=pl=>P.filter(p=>p.platform===pl).reduce((s,p)=>s+inter(p),0);
+  charts.b=new Chart($('#c2'),{type:'doughnut',data:{labels:['LinkedIn','Instagram'],datasets:[{data:[by('linkedin'),by('instagram')],backgroundColor:['#0a66c2','#d62976'],borderWidth:0}]}});
+  const s=k=>P.reduce((a,p)=>a+(+p.m[k]||0),0);
+  charts.c=new Chart($('#c3'),{type:'bar',data:{labels:['J\'aime','Commentaires','Partages','Enregistrements','Clics'],datasets:[{data:[s('likes'),s('comments'),s('shares'),s('saves'),s('clicks')],backgroundColor:['#3d6bff','#19e68c','#ffb84d','#b26bff','#ff6b81']}]},options:{plugins:{legend:{display:false}}}});
+  charts.d=new Chart($('#c4'),{type:'bar',data:{labels:lab,datasets:[{data:P.map(p=>+p.m.clicks||0),backgroundColor:'#19e68c'}]},options:{plugins:{legend:{display:false}}}});
+}
+function vGoals(){
+  const row=pl=>{const g=S.goals[pl],c=curFol(pl),pct=Math.max(0,Math.min(100,Math.round((c-g.start)/Math.max(1,g.goal-g.start)*100)));
+    return`<div class="card"><span class="tag ${PLT[pl]}">${PLN[pl]} · abonnés</span><div class="kpi"><div class="v">${fmt(c)} <span class="mut">/ ${fmt(g.goal)}</span></div></div><div class="bar"><i style="width:${pct}%"></i></div><div class="mut">${c>=g.goal?'Objectif atteint 🎉':`Encore ${fmt(g.goal-c)} · départ : ${fmt(g.start)}`}</div></div>`};
+  const r=S.rev||0;
+  return`<div class="g2">${row('linkedin')}${row('instagram')}<div class="card"><span class="tag draft">Témoignages clients</span><div class="kpi"><div class="v">${r} <span class="mut">/ 5</span></div></div><div class="bar"><i style="width:${Math.min(100,r/5*100)}%"></i></div><div class="mut">Objectif : 5 en 3 mois (la rubrique témoignages du site est vide)</div></div></div>`}
+function vGen(){
+  return`<h1>Générer des posts</h1><p class="sub">Choisis un sujet (idée du jour, explorateur ou ton propre texte), le réseau, l'objectif et le nombre de variantes. L'IA applique ce qu'elle a appris de tes résultats (${L().rules.length} règles actives) et ne cite que les faits vérifiés des réalisations.</p>
+  ${!S.settings.apiKey?`<div class="note">💡 Sans clé API : remplis le formulaire, clique sur « Copier le prompt », colle-le dans Claude.ai, puis recolle la réponse plus bas pour créer les brouillons.</div>`:''}
+  ${ideasHtml()}
+  ${exrHtml()}
+  <div class="card"><label>Sujet / idée / réalisation à mettre en avant</label><textarea id="topic" placeholder="Ex : Paris Cœur de Lumière à Saint-Sulpice : les coulisses de l'installation"></textarea>
+  <div class="row" style="margin-top:6px"><div class="f1"><label>Réseau</label><select id="plat"><option value="linkedin">LinkedIn</option><option value="instagram">Instagram</option><option value="both">LinkedIn + Instagram</option></select></div>
+  <div class="f1"><label>Variantes par réseau</label><select id="n"><option>1</option><option selected>2</option><option>3</option></select></div>
+  <div class="f1"><label>Objectif</label><select id="goal"><option>Maximiser les commentaires</option><option>Maximiser les partages et enregistrements</option><option>Maximiser les clics et demandes de devis</option><option>Gagner des abonnés</option><option>Équilibre engagement + clics</option></select></div></div>
+  ${S.settings.apiKey?`<div style="margin-top:18px"><button class="btn" id="gen" onclick="generate()">Générer les posts (clé API)</button></div>`:''}</div>${noKey('gen')}`;
+}
+function postCard(p,bare){
+  const li=p.platform==='linkedin',id=p.id,m=p.m||{};
+  return`<div class="${bare?'':'card '}post"><div class="row"><span class="tag ${PLT[p.platform]}">${PLN[p.platform]}</span><span class="tag ${p.status==='published'?'pub':'draft'}">${p.status==='published'?'Publié':'Brouillon'}</span><span class="mut f1">${esc(p.angle)} · ${new Date(p.createdAt).toLocaleDateString('fr-FR')}</span>${p.m?.impressions>0?`<span class="good"><b>ER ${fmt(er(p))}%</b></span><span class="mut">CTR ${fmt(ctr(p))}%</span>`:''}</div>
+  ${p.topic?`<div class="mut" style="margin-top:8px">Sujet : ${esc(p.topic)}</div>`:''}
+  <textarea id="t_${id}" style="margin-top:12px;min-height:150px" onchange="editText('${id}')">${esc(p.text)}</textarea>
+  <label style="margin:10px 0 4px">📸 Visuel suggéré</label><textarea id="img_${id}" style="min-height:56px" placeholder="Aucune suggestion : ajoute ton idée de visuel ici" onchange="editImg('${id}')">${esc(p.image||'')}</textarea>
+  <div class="row" style="margin-top:10px"><button class="btn sm sec" onclick="copyPost('${id}')">📋 Copier</button><button class="btn sm sec" onclick="openNet('${id}')">↗ Copier & ouvrir ${PLN[p.platform]}</button>${p.status!=='published'?`<button class="btn sm ok" onclick="publish('${id}')">✔ J'ai publié</button>`:''}<span class="f1"></span><button class="btn sm del" onclick="delPost('${id}')">Supprimer</button></div>
+  ${p.status==='published'?`<details style="margin-top:12px" ${p.m?.impressions?'':'open'}><summary class="mut" style="cursor:pointer">📈 Saisir / modifier les résultats</summary>
+  <div class="m6" style="margin-top:10px">${MK.map(([k,l])=>`<div><label style="margin:0 0 4px">${l}</label><input type="number" min="0" id="${k}_${id}" value="${m[k]||0}"></div>`).join('')}</div>
+  <div style="margin-top:10px"><button class="btn sm" onclick="saveMetrics('${id}')">Enregistrer</button></div></details>`:''}</div>`;
+}
+const SRC={generated:['🤖','Généré'],trend:['💡','Tendances'],manual:['✍️','Saisi à la main'],imported:['📥','Importé (PDF)']};
+const SRC_ORD=['generated','trend','manual','imported'];
+const srcOf=p=>p.source||(p.topic==='Suggestion tendances'?'trend':'generated');
+const hasM=p=>p.m?.impressions>0;
+const dOf=p=>new Date(p.status==='published'?(p.publishedAt||p.createdAt):p.createdAt);
+let pf={st:'',net:'all',src:'all',sort:'recent'};const openP=new Set();
+const opt=(v,c,l)=>`<option value="${v}" ${v===c?'selected':''}>${l}</option>`;
+function postRow(p){
+  const s=SRC[srcOf(p)],pub=p.status==='published',m=p.m||{};
+  const prev=esc((p.text||'').replace(/\s+/g,' ').slice(0,130));
+  return`<details class="card prow" ${openP.has(p.id)?'open':''} ontoggle="this.open?openP.add('${p.id}'):openP.delete('${p.id}')">
+  <summary><div class="row" style="gap:8px;flex-wrap:wrap"><span class="tag ${PLT[p.platform]}">${PLN[p.platform]}</span><span class="tag ${pub?'pub':'draft'}">${pub?'Publié':'Brouillon'}</span><span class="tag">${s[0]} ${s[1]}</span><span class="mut">${dOf(p).toLocaleDateString('fr-FR')}</span><span class="f1"></span>${pub?(hasM(p)?`<span class="good"><b>ER ${fmt(er(p))}%</b></span><span class="mut">${fmt(m.impressions)} impr. · ${m.clicks||0} clics</span>`:'<span class="badc">⏳ résultats à saisir</span>'):''}</div>
+  <div class="mut" style="margin-top:8px">${prev}…</div></summary>
+  <div style="margin-top:12px">${postCard(p,true)}</div></details>`}
+function vPosts(){
+  const all=S.posts,pubd=p=>p.status==='published';
+  const cnt={draft:all.filter(p=>!pubd(p)).length,published:all.filter(pubd).length,tomeasure:all.filter(p=>pubd(p)&&!hasM(p)).length,all:all.length};
+  if(!pf.st)pf.st=cnt.draft?'draft':'published';
+  const okSt=p=>pf.st==='all'||(pf.st==='draft'?!pubd(p):pf.st==='published'?pubd(p):pubd(p)&&!hasM(p));
+  const list=all.filter(p=>okSt(p)&&(pf.net==='all'||p.platform===pf.net)&&(pf.src==='all'||srcOf(p)===pf.src));
+  const byDate=(a,b)=>dOf(b)-dOf(a);
+  list.sort(pf.st==='draft'?(a,b)=>SRC_ORD.indexOf(srcOf(a))-SRC_ORD.indexOf(srcOf(b))||byDate(a,b):pf.sort==='er'?(a,b)=>(er(b)??-1)-(er(a)??-1):byDate);
+  let html='',last='';
+  for(const p of list){
+    const g=pf.st==='draft'?SRC[srcOf(p)].join(' '):pf.sort==='recent'?dOf(p).toLocaleDateString('fr-FR',{month:'long',year:'numeric'}):'';
+    if(g&&g!==last){html+=`<div class="mut" style="margin:20px 0 8px;font-weight:600;text-transform:capitalize">${g}</div>`;last=g}
+    html+=postRow(p)}
+  const stB=[['draft','✏️ Brouillons',cnt.draft],['published','✅ Publiés',cnt.published],['tomeasure','⏳ À mesurer',cnt.tomeasure],['all','Tous',cnt.all]];
+  return`<h1>Mes posts</h1><p class="sub">Clique sur un post pour le lire, le modifier, le publier ou saisir ses résultats.</p>
+  <div class="row" style="margin-bottom:12px;flex-wrap:wrap;gap:8px">${stB.map(([k,l,n])=>`<button class="btn sm ${pf.st===k?'':'sec'}" onclick="pf.st='${k}';render()">${l} (${n})</button>`).join('')}</div>
+  <div class="row" style="margin-bottom:8px;gap:10px;flex-wrap:wrap">
+    <select style="width:auto" onchange="pf.net=this.value;render()">${opt('all',pf.net,'Tous les réseaux')}${opt('linkedin',pf.net,'LinkedIn')}${opt('instagram',pf.net,'Instagram')}</select>
+    <select style="width:auto" onchange="pf.src=this.value;render()">${opt('all',pf.src,'Toutes les origines')}${SRC_ORD.map(k=>opt(k,pf.src,SRC[k].join(' '))).join('')}</select>
+    ${pf.st==='draft'?'':`<select style="width:auto" onchange="pf.sort=this.value;render()">${opt('recent',pf.sort,'Plus récents d\'abord')}${opt('er',pf.sort,'Meilleur engagement d\'abord')}</select>`}</div>
+  ${list.length?html:`<div class="card empty">Aucun post dans cette vue. ${pf.st==='draft'?`<a href="#" onclick="go('generate');return false">Génère-en →</a>`:''}</div>`}`;
+}
+function vLearn(){
+  const ins=PLS.flatMap(pl=>insights(pl).map(i=>({...i,label:PLN[pl]+' · '+i.label}))),n=measured().length;
+  return`<h1>Apprentissage</h1><p class="sub">Comment l'IA s'ajuste en fonction de tes résultats</p>
+  <div class="card" style="margin-bottom:14px"><div class="row"><div class="f1"><b>Règles apprises</b><div class="mut">${n} posts mesurés${L().at?` · dernière analyse le ${new Date(L().at).toLocaleDateString('fr-FR')}`:''} · analyse automatique tous les 3 nouveaux posts mesurés</div></div>${S.settings.apiKey?`<button class="btn" onclick="analyze(false)">🔄 Analyser maintenant</button>`:''}</div>
+  ${L().summary?`<p style="margin:14px 0">${esc(L().summary)}</p>`:''}
+  <div style="margin-top:14px">${L().rules.length?L().rules.map(r=>`<div class="rule">${esc(r)}</div>`).join(''):'<div class="mut">Pas encore de règles. Importe ou saisis au moins 3 posts avec leurs résultats, puis lance l\'analyse.</div>'}</div></div>
+  ${S.settings.apiKey?'':noKey('learn')}
+  <div class="card"><b>Corrélations observées (taux d'engagement cumulé, par réseau, indicatif)</b>${ins.length?`<div style="overflow:auto"><table style="margin-top:10px"><tr><th>Critère</th><th>Avec</th><th>Sans</th><th>Écart</th></tr>${ins.map(i=>`<tr><td>${i.label}</td><td>${fmt(i.with)}% <span class="mut">(${i.n[0]})</span></td><td>${fmt(i.without)}% <span class="mut">(${i.n[1]})</span></td><td class="${i.diff>0?'good':'badc'}">${i.diff>0?'+':''}${fmt(i.diff)}%</td></tr>`).join('')}</table></div>`:'<div class="mut" style="margin-top:8px">Il faut au moins 6 posts mesurés sur un même réseau (et 3 avec / 3 sans le critère).</div>'}</div>`;
+}
+
+/* ===================== SAISIE MANUELLE ===================== */
+function vInput(){
+  const td=today();
+  const fi=pl=>`<div class="f1"><label>${PLN[pl]} : abonnés actuels</label><input type="number" min="0" id="fo_${pl}" value="${curFol(pl)}"></div>`;
+  return`<h1>Saisie manuelle</h1><p class="sub">Trois petits formulaires. Ce que tu saisis alimente le dashboard et l'apprentissage de l'IA. Pour importer d'un coup toutes les statistiques d'un PDF, va dans <a href="#" onclick="go('settings');return false">Réglages</a>.</p>
+  <div class="card"><span class="step">1</span><b>Mes abonnés</b><div class="help">À mettre à jour chaque semaine : le nombre affiché sur la page LinkedIn VLS et sur le profil Instagram @vls_event.</div>
+  <div class="row">${fi('linkedin')}${fi('instagram')}<div class="f1"><label>Date</label><input type="date" id="fo_d" value="${td}"></div></div>
+  <div style="margin-top:14px"><button class="btn" onclick="saveFol()">Enregistrer les abonnés</button></div></div>
+  <div class="card" style="margin-top:14px"><span class="step">2</span><b>Un post déjà publié + ses résultats</b><div class="help">Colle le texte du post, puis recopie ses chiffres. LinkedIn : « Voir les statistiques du post ». Instagram : « Voir les statistiques » sous le post (vues, j'aime, commentaires, partages, enregistrements, clics sur le lien ou le profil). Mets 0 si tu n'as pas l'info (sans impressions, le post n'entre pas dans les statistiques). Idéal : 48 h après la publication.</div>
+  <div class="row"><div class="f1"><label>Réseau</label><select id="mp"><option value="linkedin">LinkedIn</option><option value="instagram">Instagram</option></select></div><div class="f1"><label>Date de publication</label><input type="date" id="md" value="${td}"></div></div>
+  <label>Texte du post</label><textarea id="mt" placeholder="Colle ici le texte publié…"></textarea>
+  <div class="m6" style="margin-top:6px">${MK.map(([k,l])=>`<div><label>${l}</label><input type="number" min="0" id="mm_${k}" value="0"></div>`).join('')}</div>
+  <div style="margin-top:14px"><button class="btn" onclick="saveManual()">Ajouter ce post</button></div></div>
+  <div class="card" style="margin-top:14px"><span class="step">3</span><b>Témoignages clients collectés</b><div class="help">Nombre total de témoignages ou d'avis clients obtenus (pour le site, Google ou LinkedIn).</div>
+  <div class="row"><div style="width:140px"><input type="number" min="0" id="rv" value="${S.rev||0}"></div><button class="btn" onclick="saveRev()">Enregistrer</button></div></div>`}
+function saveFol(){const d=$('#fo_d').value||today();
+  PLS.forEach(pl=>{const v=$('#fo_'+pl).value;if(v!==''&&+v!==curFol(pl))S.fol.push({id:uid(),platform:pl,date:d,n:+v,at:Date.now()})});
+  save();render();toast('Abonnés enregistrés ✔')}
+function saveManual(){
+  const t=$('#mt').value.trim();if(!t)return toast('Colle le texte du post.');
+  const d=new Date(($('#md').value||today())+'T12:00:00').toISOString(),m={};MK.forEach(([k])=>m[k]=+$('#mm_'+k).value||0);
+  S.posts.unshift({id:uid(),platform:$('#mp').value,angle:'saisie manuelle',source:'manual',text:t,topic:'',status:'published',createdAt:d,publishedAt:d,m});
+  save();render();toast('Post ajouté ✔');maybeAnalyze()}
+function saveRev(){S.rev=+$('#rv').value||0;save();render();toast('Témoignages enregistrés ✔')}
+
+/* ===================== IMPORT PDF DES STATISTIQUES ===================== */
+const IMP={rows:[],raw:'',name:'',busy:false,def:'auto'};
+function loadPdfJs(){return new Promise((res,rej)=>{if(window.pdfjsLib)return res(window.pdfjsLib);const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';res(window.pdfjsLib)};s.onerror=()=>rej(new Error('lecteur PDF indisponible (connexion internet requise)'));document.head.appendChild(s)})}
+async function pdfText(file){
+  const lib=await loadPdfJs();const pdf=await lib.getDocument({data:await file.arrayBuffer()}).promise;const out=[];
+  for(let p=1;p<=pdf.numPages;p++){const pg=await pdf.getPage(p),tc=await pg.getTextContent(),rows=[];
+    tc.items.forEach(it=>{const s=(it.str||'').trim();if(!s)return;const y=it.transform[5],x=it.transform[4];let r=rows.find(r=>Math.abs(r.y-y)<3);if(!r){r={y,c:[]};rows.push(r)}r.c.push({x,s})});
+    rows.sort((a,b)=>b.y-a.y).forEach(r=>out.push(r.c.sort((a,b)=>a.x-b.x).map(c=>c.s).join(' ').replace(/\s+/g,' ').trim()));out.push('')}
+  return out.join('\n')}
+const MON=[['janv',1],['jan',1],['févr',2],['fevr',2],['fév',2],['feb',2],['mars',3],['mar',3],['avr',4],['apr',4],['mai',5],['may',5],['juin',6],['jun',6],['juil',7],['jul',7],['août',8],['aout',8],['aug',8],['sept',9],['sep',9],['oct',10],['nov',11],['déc',12],['dec',12]];
+const monOf=w=>{w=w.toLowerCase();const m=MON.find(([k])=>w.startsWith(k));return m?m[1]:0};
+function findDate(l){let m=l.match(/\b(20\d{2})[-\/.](\d{1,2})[-\/.](\d{1,2})\b/);if(m)return`${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+  m=l.match(/\b(\d{1,2})[\/.](\d{1,2})[\/.](\d{2}|\d{4})\b/);if(m){let y=+m[3];if(y<100)y+=2000;if(+m[2]<=12)return`${y}-${pad(m[2])}-${pad(m[1])}`}
+  m=l.match(/\b(\d{1,2})(?:er)?\s+([A-Za-zÀ-ÿ]+)\.?,?\s+(20\d{2})\b/);if(m&&monOf(m[2]))return`${m[3]}-${pad(monOf(m[2]))}-${pad(m[1])}`;
+  m=l.match(/\b([A-Za-zÀ-ÿ]+)\.?\s+(\d{1,2}),?\s+(20\d{2})\b/);if(m&&monOf(m[1]))return`${m[3]}-${pad(monOf(m[1]))}-${pad(m[2])}`;
+  return''}
+const NUM='(\\d{1,3}(?:[\\s\\u202f\\u00a0.]\\d{3})+(?:,\\d+)?|\\d+(?:[.,]\\d+)?)(\\s?[kK])?';
+const MRE={impressions:'impressions?|vues|views|affichages|port[ée]e|couverture|reach|comptes touch[ée]s',likes:"j[’']aime|likes?|r[ée]actions?|mentions j[’']aime",comments:'commentaires?|comments?',shares:'partages?|republications?|reposts?|shares?|envois',saves:'enregistrements?|saves?|sauvegardes?',clicks:'clics?|clicks?'};
+function toNum(n,k){let v=String(n).replace(/[\s\u202f\u00a0]/g,'');if(k){return Math.round(parseFloat(v.replace(',','.'))*1000)||0}
+  if(/^\d{1,3}(\.\d{3})+$/.test(v))v=v.replace(/\./g,'');return Math.round(parseFloat(v.replace(',','.')))||0}
+const LBL=new RegExp('^\\s*('+Object.values(MRE).join('|')+')','i');
+function lineMetrics(line){const res={};let rest=line;
+  /* Ordre de lecture : « Impressions : 1 461 » (libellé puis chiffre) si la ligne commence par un libellé,
+     sinon « 2,3 k vues · 120 j'aime » (chiffre puis libellé) en priorité */
+  const labelFirst=LBL.test(line),A=k=>new RegExp('('+MRE[k]+')\\s*[:=\\-–]?\\s*'+NUM,'iu'),Bf=k=>new RegExp(NUM+'\\s*('+MRE[k]+')(?![\\p{L}])','iu');
+  const pass=(mk,ix)=>{for(const k in MRE){if(k in res)continue;const m=rest.match(mk(k));if(m){res[k]=toNum(m[ix],m[ix+1]);rest=rest.replace(m[0],' ')}}};
+  if(labelFirst){pass(A,2);pass(Bf,1)}else{pass(Bf,1);pass(A,2)}
+  return{res,rest:rest.trim()}}
+function parseStats(text,def){
+  const lines=text.split('\n').map(l=>l.trim()),blocks=[];let cur=null;
+  const start=d=>{cur={date:d,txt:[],m:EMPTY_M(),hits:0,raw:[]};blocks.push(cur)};
+  for(const l of lines){if(!l)continue;
+    const d=findDate(l);if(d&&(!cur||cur.hits||cur.txt.length)){start(d)}else if(d&&cur&&!cur.date)cur.date=d;
+    if(!cur)start('');
+    cur.raw.push(l);
+    const {res,rest}=lineMetrics(l);
+    for(const k in res){cur.m[k]=Math.max(cur.m[k],res[k]);cur.hits++}
+    const clean=rest.replace(/\b(20\d{2})[-\/.]\d{1,2}[-\/.]\d{1,2}\b|\b\d{1,2}[\/.]\d{1,2}[\/.]\d{2,4}\b|\b\d{1,2}(?:er)?\s+[A-Za-zÀ-ÿ]+\.?\s+20\d{2}\b/g,'').replace(/^(post|publication)\s+(du|le)\s*/i,'').replace(/\b(linkedin|instagram)\b/ig,'').trim();
+    if(!Object.keys(res).length&&clean.split(/\s+/).length>=4&&!/^page\s*\d+/i.test(clean))cur.txt.push(clean)}
+  return blocks.filter(b=>b.hits>0&&(b.m.impressions||b.m.likes||b.m.comments)).map(b=>{const all=b.raw.join(' ');
+    const pl=def!=='auto'?def:/instagram|insta\b|reel|story|enregistrement/i.test(all)?'instagram':'linkedin';
+    return{on:true,platform:pl,date:b.date||today(),text:b.txt.join('\n').slice(0,3000),m:b.m}})}
+async function onPdf(file){
+  if(!file)return;if(!/\.pdf$/i.test(file.name)&&file.type!=='application/pdf')return toast('Choisis un fichier PDF.');
+  IMP.busy=true;IMP.name=file.name;render();
+  try{IMP.raw=await pdfText(file);IMP.rows=parseStats(IMP.raw,IMP.def);
+    toast(IMP.rows.length?`${IMP.rows.length} posts détectés : vérifie l'aperçu puis importe.`:'Aucun post reconnu automatiquement : utilise « Analyser avec Claude » ci-dessous.',6000)}
+  catch(e){toast('Lecture du PDF impossible : '+e.message,7000)}
+  IMP.busy=false;render()}
+function impSet(i,k,v){const r=IMP.rows[i];if(k==='on')r.on=v;else if(MK.some(([x])=>x===k))r.m[k]=+v||0;else r[k]=v}
+const impKey=(pl,d,t)=>pl+'|'+String(d).slice(0,10)+'|'+String(t||'').replace(/\s+/g,' ').slice(0,40).toLowerCase();
+function importRows(){
+  const rows=IMP.rows.filter(r=>r.on);if(!rows.length)return toast('Aucune ligne cochée.');
+  let add=0,upd=0;
+  rows.forEach(r=>{const d=(r.date||today()).slice(0,10),k=impKey(r.platform,d,r.text);
+    const same=S.posts.filter(p=>p.platform===r.platform&&(p.publishedAt||p.createdAt||'').slice(0,10)===d);
+    const ex=same.find(p=>impKey(p.platform,d,p.text)===k)||(!r.text&&same.length===1?same[0]:null)||(same.length===1&&r.text&&same[0].text.replace(/\s+/g,' ').slice(0,25).toLowerCase()===r.text.replace(/\s+/g,' ').slice(0,25).toLowerCase()?same[0]:null);
+    if(ex){ex.m={...EMPTY_M(),...r.m};ex.status='published';ex.publishedAt=ex.publishedAt||d+'T12:00:00.000Z';if(r.text&&!ex.text)ex.text=r.text;upd++}
+    else{const iso=d+'T12:00:00.000Z';S.posts.push({id:uid(),platform:r.platform,angle:'import PDF',source:'imported',text:r.text||'(texte non présent dans le PDF)',image:'',topic:'',status:'published',createdAt:iso,publishedAt:iso,m:{...EMPTY_M(),...r.m}});add++}});
+  save();IMP.rows=[];render();toast(`Import terminé : ${add} posts ajoutés, ${upd} mis à jour ✔`,6000);maybeAnalyze()}
+function pdfParts(){const raw=IMP.raw.length>90000?IMP.raw.slice(0,90000)+'\n[… texte tronqué]':IMP.raw;
+  return['Tu extrais des statistiques de publications LinkedIn et Instagram depuis le texte brut d\'un PDF. Réponds uniquement en JSON valide.',
+  `Voici le texte extrait d'un PDF de statistiques des réseaux sociaux de VLS (LinkedIn et/ou Instagram) :\n"""\n${raw}\n"""\n\nMission : liste chaque publication avec sa plateforme, sa date de publication, son texte (complet s'il est présent, sinon vide) et ses statistiques. Règles : n'invente rien ; mets 0 quand une valeur est absente ; ignore les totaux globaux de période et les statistiques d'abonnés ; impressions = impressions, vues ou couverture ; likes = j'aime ou réactions ; shares = partages, republications ou envois ; saves = enregistrements ; clicks = clics. Date au format AAAA-MM-JJ.\nFormat : {"posts":[{"platform":"linkedin|instagram","date":"AAAA-MM-JJ","text":"...","m":{"impressions":0,"likes":0,"comments":0,"shares":0,"saves":0,"clicks":0}}]}`]}
+function rowsFromJSON(o){const arr=Array.isArray(o)?o:(o.posts||[]);return arr.map(p=>({on:true,platform:/insta/i.test(p.platform||'')?'instagram':'linkedin',date:(p.date||today()).slice(0,10),text:p.text||'',m:{...EMPTY_M(),...Object.fromEntries(Object.entries(p.m||p.metrics||{}).map(([k,v])=>[k,+v||0]))}})).filter(r=>r.m.impressions||r.m.likes||r.m.comments)}
+async function pdfClaude(){if(!IMP.raw)return toast('Dépose d\'abord un PDF.');
+  const btn=$('#pdfai');if(btn){btn.disabled=true;btn.textContent='Analyse en cours…'}
+  try{const [s,u]=pdfParts();IMP.rows=rowsFromJSON(parseJSON(await claude(s,u,8000)));toast(`${IMP.rows.length} posts extraits par Claude ✔`)}catch(e){toast('Analyse impossible : '+e.message,6000)}
+  render()}
+function impHtml(){
+  const r=IMP.rows;
+  return`<div class="card" style="margin-bottom:14px"><b>📥 Importer les statistiques depuis un PDF</b>
+  <div class="help">Dépose le PDF de statistiques de tes posts (LinkedIn, Instagram ou les deux). L'outil lit le PDF, repère chaque post et ses chiffres, puis te montre un aperçu à vérifier avant d'importer. Les posts déjà présents à la même date sont mis à jour, sans doublon. Tout reste dans ton navigateur.</div>
+  <div class="row"><div><label style="margin-top:0">Réseau du PDF</label><select style="width:auto" onchange="IMP.def=this.value">${opt('auto',IMP.def,'Détection automatique')}${opt('linkedin',IMP.def,'Tout LinkedIn')}${opt('instagram',IMP.def,'Tout Instagram')}</select></div></div>
+  <label class="drop" id="drop" ondragover="event.preventDefault();this.classList.add('on')" ondragleave="this.classList.remove('on')" ondrop="event.preventDefault();this.classList.remove('on');onPdf(event.dataTransfer.files[0])">${IMP.busy?'⏳ Lecture du PDF en cours…':IMP.name?`📄 ${esc(IMP.name)} · clique ou dépose un autre PDF`:'📄 Glisse ton PDF ici ou clique pour le choisir'}<input type="file" accept="application/pdf,.pdf" hidden onchange="onPdf(this.files[0])"></label>
+  ${IMP.raw?`<div class="row" style="margin-top:12px">${S.settings.apiKey?`<button class="btn sm sec" id="pdfai" onclick="pdfClaude()">🤖 Analyser avec Claude (plus fiable)</button>`:''}<details class="f1"><summary class="mut" style="cursor:pointer">Voir le texte extrait du PDF</summary><pre style="white-space:pre-wrap;max-height:240px;overflow:auto;font-size:12px;background:#0c0d12;padding:12px;border-radius:12px;border:1px solid var(--line)">${esc(IMP.raw.slice(0,20000))}</pre></details></div>
+  ${S.settings.apiKey?'':`<details style="margin-top:12px" ${r.length?'':'open'}><summary class="mut" style="cursor:pointer">${r.length?'Aperçu incomplet ou erroné ? Faire analyser le PDF par Claude':'Faire analyser le PDF par Claude'}</summary>${noKey('pdf')}</details>`}`:''}
+  ${r.length?`<div class="imp"><table><tr><th></th><th>Réseau</th><th>Date</th><th>Texte du post</th>${MK.map(([,l])=>`<th>${l}</th>`).join('')}</tr>${r.map((x,i)=>`<tr><td><input type="checkbox" ${x.on?'checked':''} onchange="impSet(${i},'on',this.checked)" style="width:auto"></td><td><select onchange="impSet(${i},'platform',this.value)">${opt('linkedin',x.platform,'LinkedIn')}${opt('instagram',x.platform,'Instagram')}</select></td><td><input type="date" value="${esc(x.date)}" onchange="impSet(${i},'date',this.value)"></td><td style="min-width:240px"><textarea onchange="impSet(${i},'text',this.value)">${esc(x.text)}</textarea></td>${MK.map(([k])=>`<td style="min-width:80px"><input type="number" min="0" value="${x.m[k]||0}" onchange="impSet(${i},'${k}',this.value)"></td>`).join('')}</tr>`).join('')}</table></div>
+  <div class="row" style="margin-top:12px"><button class="btn" onclick="importRows()">Importer les ${r.filter(x=>x.on).length} posts cochés</button><button class="btn sm del" onclick="IMP.rows=[];render()">Annuler</button></div>`:''}</div>`}
+
+/* ===================== RÉGLAGES ===================== */
+function vSet(){
+  const s=S.settings;
+  const pfl=(k,l)=>`<label>${l}</label><textarea style="min-height:70px" onchange="S.prof['${k}']=this.value.trim();save()">${esc(B()[k])}</textarea>`;
+  const inp=(k,l,ph='',t='text')=>`<label>${l}</label><input type="${t}" value="${esc(s[k])}" placeholder="${ph}" onchange="S.settings['${k}']=this.value.trim();save()">`;
+  const gl=pl=>`<div class="f1"><label>${PLN[pl]} : abonnés au départ</label><input type="number" min="0" value="${S.goals[pl].start}" onchange="S.goals.${pl}.start=+this.value||0;save()"></div><div class="f1"><label>${PLN[pl]} : objectif à 90 jours</label><input type="number" min="0" value="${S.goals[pl].goal}" onchange="S.goals.${pl}.goal=+this.value||0;save()"></div>`;
+  return`<h1>Réglages</h1><p class="sub">Tout est stocké dans ton navigateur (localStorage). Pense à exporter une sauvegarde de temps en temps.</p>
+  ${impHtml()}
+  <div class="card" style="margin-bottom:14px"><b>Objectifs d'abonnés</b><div class="row">${gl('linkedin')}</div><div class="row">${gl('instagram')}</div><label>Prénom affiché sur le dashboard</label><input value="${esc(S.user)}" onchange="S.user=this.value.trim()||'Lise';save()"></div>
+  <div class="note"><b>Sécurité :</b> la clé API reste dans ton navigateur et n'est envoyée qu'à Anthropic. Sans clé, tout fonctionne avec ton abonnement Claude.ai (boutons « Copier le prompt »).</div>
+  <div class="card">${inp('apiKey','Clé API Anthropic (facultative)','sk-ant-…','password')}${inp('model','Modèle','claude-sonnet-5-5')}</div>
+  <div class="card" style="margin-top:14px"><b>Profil éditorial VLS</b><div class="help">Ces textes sont injectés dans chaque prompt. Modifie-les si le ton ou la cible évoluent.</div>${pfl('audience','Audience cible')}${pfl('tone','Ton éditorial')}${pfl('pillars','Piliers de contenu')}<label>URL du site (liens UTM LinkedIn)</label><input value="${esc(B().site)}" onchange="S.prof.site=this.value.trim();save()"></div>
+  <div class="card" style="margin-top:14px"><b>Données</b><div class="row" style="margin-top:10px"><button class="btn sec" onclick="exportData()">⬇ Exporter (JSON)</button><label class="btn sec" style="margin:0;cursor:pointer">⬆ Importer une sauvegarde<input type="file" accept=".json" hidden onchange="importData(event)"></label><button class="btn del" onclick="reset()">Tout effacer</button></div></div>
+  <div class="card" style="margin-top:14px"><b>Base de sujets</b><p class="mut" style="line-height:1.6">${EV.length} réalisations issues de vls.fr · ${fmt(bank().length)} sujets de posts. Chaque sujet lié à une réalisation injecte sa fiche (lieu, partenaires, rôle de VLS, chiffres publiés) dans le prompt, pour que l'IA n'invente rien.</p></div>
+  <div class="card" style="margin-top:14px"><b>Comment sont mesurés les clics ?</b><p class="mut" style="line-height:1.6">Sur LinkedIn, chaque post contenant {{LINK}} reçoit un lien avec des paramètres UTM uniques (<code>utm_campaign=ppvls_ID</code>), visibles dans Google Analytics. Sur Instagram, les liens ne sont pas cliquables : on écrit « lien en bio » et on relève les clics sur le lien du profil dans les statistiques Instagram.</p></div>`;
+}
+
+/* ===================== TENDANCES ===================== */
+async function claudeWeb(system,user,max=6000){
+  if(!S.settings.apiKey)throw new Error('Ajoute ta clé API Anthropic dans Réglages.');
+  let msgs=[{role:'user',content:user}],txt='';
+  for(let i=0;i<4;i++){
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:S.settings.model,max_tokens:max,system,tools:[{type:'web_search_20250305',name:'web_search',max_uses:6}],messages:msgs})});
+    const j=await r.json();if(!r.ok)throw new Error(j.error?.message||('Erreur '+r.status));
+    txt+=j.content.filter(c=>c.type==='text').map(c=>c.text).join('');
+    if(j.stop_reason!=='pause_turn')break;
+    msgs=[...msgs,{role:'assistant',content:j.content}];
+  }
+  return txt}
+function trendsParts(){const b=B(),td=new Date().toLocaleDateString('fr-FR');
+  const sys=`Tu es stratège social media pour ${b.name}, ${b.sector}. Audience: ${b.audience}. Ton: ${b.tone}. Piliers: ${b.pillars}. ${b.facts} Tu DOIS t'appuyer sur la recherche web pour identifier ce qui performe actuellement (nous sommes le ${td}). N'invente ni chiffre ni source : si tu ne trouves pas, dis-le. Réponds UNIQUEMENT avec un JSON valide.`;
+  const recent=EV.filter(e=>e.y>=2024).map(fiche).join('\n');
+  const user=`${perfContext()}\n\nRecherche les tendances, formats, accroches et sujets d'actualité qui fonctionnent en ce moment sur LinkedIn et Instagram dans l'événementiel, la technique audiovisuelle, le mapping vidéo et les fêtes des lumières : ${b.topics}. Regarde ce que publient les acteurs de référence (prestataires techniques, agences événementielles, festivals de lumière, salons comme Heavent) et les événements à venir dans les prochaines semaines (saison, fêtes des lumières, salons, temps forts du secteur). Produis 4 tendances (title, insight, source = URL réelle trouvée) puis 6 posts prêts à publier (3 LinkedIn, 3 Instagram) qui appliquent ces tendances aux piliers de VLS. Quand c'est pertinent, appuie-toi sur une réalisation réelle ci-dessous (et uniquement sur ses faits) :\n${recent}\n"why" = pourquoi ça devrait marcher. Utilise {{LINK}} pour le lien du site sur LinkedIn si pertinent. ${IMGR}\nFormat: {"trends":[{"title":"","insight":"","source":""}],"posts":[{"platform":"linkedin|instagram","pillar":"","angle":"","text":"","image":"","why":""}]}`;
+  return[sys,user]}
+async function fetchTrends(){
+  const btn=$('#tr');btn.disabled=true;btn.textContent='Recherche en cours… (30 à 60 s)';
+  try{const [sys,user]=trendsParts();const o=parseJSON(await claudeWeb(sys,user));
+    S.trends={at:new Date().toISOString(),trends:o.trends||[],posts:o.posts||[]};save();render();toast('Suggestions mises à jour ✔');
+  }catch(e){toast('Erreur : '+e.message,7000);btn.disabled=false;btn.textContent='🔎 Rechercher les tendances maintenant'}}
+function addSug(i){const p=S.trends.posts[i];
+  S.posts.unshift({id:uid(),platform:p.platform==='instagram'?'instagram':'linkedin',angle:p.angle||p.pillar||'tendance',text:p.text,image:p.image||'',topic:'Suggestion tendances',source:'trend',status:'draft',createdAt:new Date().toISOString(),m:EMPTY_M()});
+  save();toast('Ajouté à Mes posts (brouillons) ✔')}
+function vTrends(){
+  const t=S.trends;
+  return`<h1>Tendances & idées</h1><p class="sub">L'IA cherche sur le web ce qui performe dans l'événementiel, la technique audiovisuelle et le mapping, et te propose des posts LinkedIn et Instagram alignés avec les piliers de VLS.</p>
+  <div class="note">La recherche se lance quand tu cliques (pas en continu) : relance-la chaque semaine. Vérifie les sources avant de publier.${S.settings.apiKey?'':' Sans clé API : utilise le mode sans clé plus bas, avec la recherche web activée dans Claude.ai.'}</div>
+  ${S.settings.apiKey?`<div class="row" style="margin-bottom:16px"><button class="btn" id="tr" onclick="fetchTrends()">🔎 Rechercher les tendances maintenant</button>${t?`<span class="mut">Dernière recherche : ${new Date(t.at).toLocaleString('fr-FR')}</span>`:''}</div>`:''}
+  ${noKey('trends')}${t?`<div class="g2">${t.trends.map(x=>`<div class="card"><b>${esc(x.title)}</b><p class="help" style="font-size:13px">${esc(x.insight)}</p>${/^https?:\/\//.test(x.source||'')?`<a href="${esc(x.source)}" target="_blank" rel="noopener" style="font-size:12px">Source ↗</a>`:`<span class="mut">${esc(x.source||'')}</span>`}</div>`).join('')}</div>
+  ${t.posts.map((p,i)=>{const pl=p.platform==='instagram'?'instagram':'linkedin';return`<div class="card post"><div class="row"><span class="tag ${PLT[pl]}">${PLN[pl]}</span><span class="mut f1">${esc(p.pillar||'')} · ${esc(p.angle||'')}</span><button class="btn sm ok" onclick="addSug(${i})">➕ Ajouter aux brouillons</button></div><pre>${esc(p.text)}</pre><div class="mut">💡 ${esc(p.why||'')}</div>${p.image?`<div class="mut" style="margin-top:6px">📸 ${esc(p.image)}</div>`:''}</div>`}).join('')}`:`<div class="card empty">Lance une recherche pour obtenir des tendances et des idées de posts.</div>`}`}
+
+/* ===================== MODE SANS CLÉ API (via Claude.ai) ===================== */
+function genParts(topic,plat,n,goal){const plats=plat==='both'?PLS:[plat];
+  const user=`${perfContext(plats)}\n\nMISSION: écris ${n} variante(s) par plateforme (${plats.map(p=>PLN[p]).join(', ')}) sur ce sujet: "${topic}".${evCtx(topic)}\nObjectif principal: ${goal}. Chaque variante doit utiliser un ANGLE différent (ex: storytelling des coulisses, chiffre fort, liste, question au public, remerciement partenaire, pédagogie technique) pour tester ce qui marche. Respecte les règles propres à chaque réseau. Applique les règles apprises si elles sont fournies, selon la hiérarchie indiquée. ${IMGR}\nFormat: {"posts":[{"platform":"linkedin|instagram","angle":"...","text":"...","image":"..."}]}`;
+  return[SYS(),user]}
+const noKey=k=>`<div class="card" style="margin:14px 0"><b>${k==='pdf'?'Analyse du PDF par Claude':'Mode sans clé API'}</b> <span class="mut">(avec ton abonnement Claude.ai)</span>
+<div class="help"><b>1.</b> ${k==='gen'?'Remplis le sujet, le réseau, l\'objectif et les variantes ci-dessus, puis clique':k==='pdf'?'Si l\'aperçu automatique est incomplet, clique':'Clique'} sur « Copier le prompt ». <b>2.</b> Colle-le dans une conversation Claude.ai${k==='trends'?' <b>avec la recherche web activée</b>':''}. <b>3.</b> Copie la réponse de Claude et colle-la ci-dessous.</div>
+<button class="btn sec" onclick="copyPrompt('${k}')">📋 Copier le prompt</button>
+<label>Réponse de Claude</label><textarea id="paste_${k}" placeholder="Colle ici la réponse de Claude (le JSON)…"></textarea>
+<div style="margin-top:10px"><button class="btn" onclick="importReply('${k}')">📥 ${k==='gen'?'Créer les brouillons':k==='learn'?'Appliquer les règles':k==='pdf'?'Remplir l\'aperçu':'Importer les suggestions'}</button></div></div>`;
+async function copyPrompt(k){
+  let p;
+  if(k==='gen'){const topic=$('#topic').value.trim();if(!topic)return toast('Indique d\'abord un sujet.');p=genParts(topic,$('#plat').value,+$('#n').value,$('#goal').value).join('\n\n')}
+  else if(k==='learn'){const M=measured();if(M.length<3)return toast('Il faut au moins 3 posts publiés avec des résultats.');p=analyzeParts(M).join('\n\n')}
+  else if(k==='pdf'){if(!IMP.raw)return toast('Dépose d\'abord un PDF.');p=pdfParts().join('\n\n')}
+  else p=trendsParts().join('\n\n')+'\n\n(Utilise la recherche web dans cette conversation.)';
+  try{await navigator.clipboard.writeText(p+'\n\nRéponds uniquement avec le JSON, dans un seul bloc de code, sans autre texte. Dans les textes, écris les retours à la ligne sous la forme \\n et utilise des guillemets français « » plutôt que des guillemets doubles.');toast('Prompt copié ✔ Colle-le dans Claude.ai',5000)}catch{toast('Copie impossible : autorise le presse-papiers.')}}
+function importReply(k){
+  const v=$('#paste_'+k).value.trim();if(!v)return toast('Colle d\'abord la réponse de Claude.');
+  try{
+    const o0=parseJSON(v),o=Array.isArray(o0)?{posts:o0}:o0;
+    if(k==='gen'){
+      const arr=(o.posts||o.variants||o.drafts||[]).map(p=>({...p,text:p.text||p.texte||p.content||p.post||''})).filter(p=>p.text);if(!arr.length)throw 0;
+      addGenerated(arr,$('#topic')?$('#topic').value.trim():'');toast(arr.length+' brouillons créés ✔');go('posts');
+    }else if(k==='learn'){
+      const r=(o.rules||[]).filter(x=>typeof x==='string'&&x.trim());if(!r.length)throw 0;
+      applyLearn({rules:r,summary:o.summary},measured());render();toast(r.length+' règles appliquées ✔');
+    }else if(k==='pdf'){
+      IMP.rows=rowsFromJSON(o);if(!IMP.rows.length)throw 0;render();toast(IMP.rows.length+' posts dans l\'aperçu : vérifie puis importe ✔');
+    }else{
+      if(!(o.posts||[]).length&&!(o.trends||[]).length)throw 0;
+      S.trends={at:new Date().toISOString(),trends:o.trends||[],posts:o.posts||[]};save();render();toast('Suggestions importées ✔');
+    }
+  }catch{
+    if(k==='gen'&&v.length>80&&confirm("Je n'arrive pas à lire le JSON. Créer un brouillon avec le texte collé tel quel (tu pourras le corriger) ?")){
+      S.posts.unshift({id:uid(),platform:$('#plat')&&$('#plat').value==='instagram'?'instagram':'linkedin',angle:'',text:v.replace(/```(?:json)?/gi,'').trim(),image:'',topic:$('#topic')?$('#topic').value.trim():'',source:'generated',status:'draft',createdAt:new Date().toISOString(),m:EMPTY_M()});
+      save();toast('Brouillon créé ✔ : vérifie et corrige le texte.',6000);go('posts');return}
+    toast('Réponse illisible : colle la réponse complète de Claude (tout le bloc JSON), ou demande-lui de renvoyer uniquement le JSON.',7000)}}
+
+render();
+</script>
+</body>
+</html>
